@@ -104,11 +104,10 @@ const getDB = (): Promise<IDBDatabase> => {
 
 export const initLatticeRegistry = async (): Promise<void> => {
   try {
-    // FIX: Check for ADMIN_ID address directly. 
-    // Checking by 'username' caused resets if the admin changed their alias.
-    const genesisCheck = await getUserObject(ADMIN_ID);
+    // Check if Founder account already exists
+    const founderCheck = await getUserByIdentifier("Freedom24/71998");
     
-    if (!genesisCheck) {
+    if (!founderCheck) {
       console.log("Initializing Sovereign Lattice Platform...");
       
       // Initialize ONLY the Founder account
