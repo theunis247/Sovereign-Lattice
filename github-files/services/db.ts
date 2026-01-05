@@ -190,9 +190,10 @@ export const initLatticeRegistry = async (): Promise<void> => {
         level: 30,
         tagline: "The First Observer",
         bio: "Master Node for the Sovereign Lattice. Architect of the 10,000 breakthrough cap. Observing the resolution of 1,000 primary shards of the universe."
-      };
-      await saveUser(genesisUser);
-      console.log("Genesis Node Registry Finalized.");
+    
+    if (!genesisCheck) {
+      console.log("Initializing Sovereign Lattice Platform...");
+      console.log("Platform ready for user registration.");
     }
   } catch (err) {
     console.error("Registry Initialization Failed:", err);

@@ -334,8 +334,36 @@ const Auth = ({ onLogin }: AuthProps) => {
                 <div className="w-14 h-14 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-2 border border-green-500/30">
                    <span className="text-2xl">✓</span>
                 </div>
-                <h2 className="text-md font-black text-white uppercase tracking-widest leading-tight">Hardened Shard Provisioned</h2>
-                <p className="text-[8px] text-gray-500 uppercase font-black mt-2">THESE CREDENTIALS ARE MATHEMATICALLY UNRECOVERABLE.</p>
+                <h2 className="text-md font-black text-white uppercase tracking-widest leading-tight">Account Successfully Created!</h2>
+                <p className="text-[8px] text-gray-500 uppercase font-black mt-2">Welcome to Sovereign Lattice Platform</p>
+              </div>
+
+              {/* Critical Security Warning */}
+              <div className="bg-red-500/10 p-5 rounded-2xl border border-red-500/20 text-center space-y-2">
+                <div className="w-8 h-8 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                  <span className="text-lg">⚠️</span>
+                </div>
+                <h3 className="text-[10px] text-red-500 font-black uppercase tracking-widest">CRITICAL SECURITY NOTICE</h3>
+                <div className="text-[8px] text-red-400 leading-relaxed space-y-1">
+                  <p>• <strong>COPY AND SAVE</strong> all credentials below immediately</p>
+                  <p>• <strong>STORE SECURELY</strong> - We cannot recover lost credentials</p>
+                  <p>• <strong>NEVER SHARE</strong> your private keys or mnemonic phrase</p>
+                  <p>• <strong>BACKUP MULTIPLE LOCATIONS</strong> - Digital and physical copies</p>
+                </div>
+              </div>
+
+              {/* Account Management Info */}
+              <div className="bg-blue-500/10 p-5 rounded-2xl border border-blue-500/20 text-center space-y-2">
+                <div className="w-8 h-8 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center mx-auto">
+                  <span className="text-lg">⚙️</span>
+                </div>
+                <h3 className="text-[10px] text-blue-500 font-black uppercase tracking-widest">Account Management</h3>
+                <div className="text-[8px] text-blue-400 leading-relaxed space-y-1">
+                  <p>• <strong>CHANGE LOGIN DETAILS</strong> anytime in Settings Dashboard</p>
+                  <p>• <strong>UPDATE SECURITY</strong> - Modify password and security code</p>
+                  <p>• <strong>MANAGE PROFILE</strong> - Edit username and personal information</p>
+                  <p>• <strong>BACKUP OPTIONS</strong> - Export and import account data</p>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -343,10 +371,16 @@ const Auth = ({ onLogin }: AuthProps) => {
                     <label className="text-[7px] text-blue-400 font-black uppercase tracking-widest">Universal Profile ID</label>
                     <p className="text-xl font-black text-white tracking-widest">{newlyCreatedUser.profileId}</p>
                     <p className="text-[6px] text-gray-600 uppercase">Use this to find and add peers</p>
+                    <div className="mt-2 p-2 bg-blue-500/5 rounded-lg">
+                      <p className="text-[7px] text-blue-300">💡 This is your unique identifier on the platform</p>
+                    </div>
                  </div>
 
                  <div className="bg-black/60 p-6 rounded-3xl border border-white/5 space-y-3">
-                    <label className="text-[7px] text-orange-500 font-black uppercase tracking-widest">Scientific Master Seed (24 Words)</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[7px] text-orange-500 font-black uppercase tracking-widest">Scientific Master Seed (24 Words)</label>
+                      <div className="text-[6px] text-orange-400 bg-orange-500/10 px-2 py-1 rounded-full">BACKUP REQUIRED</div>
+                    </div>
                     <div className="grid grid-cols-3 gap-2">
                        {newlyCreatedUser.mnemonic?.split(' ').map((word, i) => (
                          <div key={i} className="bg-white/5 p-2 rounded-lg border border-white/5 text-center">
@@ -355,38 +389,91 @@ const Auth = ({ onLogin }: AuthProps) => {
                          </div>
                        ))}
                     </div>
+                    <div className="mt-3 p-3 bg-orange-500/5 rounded-lg border border-orange-500/10">
+                      <p className="text-[7px] text-orange-300 leading-relaxed">
+                        🔐 <strong>CRITICAL:</strong> This 24-word phrase is your master backup. Write it down and store it safely. 
+                        You can use this to recover your account on any device. Never share it with anyone!
+                      </p>
+                    </div>
                  </div>
 
                  <div className="bg-blue-500/5 p-5 rounded-3xl border border-blue-500/10 space-y-2 text-center">
                     <label className="text-[7px] text-blue-400 font-black uppercase tracking-widest">Secondary Security PIN</label>
                     <p className="text-2xl font-black text-white mono tracking-[0.5em]">{newlyCreatedUser.securityCode}</p>
-                    <p className="text-[6px] text-gray-600 font-black uppercase">REQUIRED FOR EVERY SUBSEQUENT LOGIN</p>
+                    <p className="text-[6px] text-gray-600 font-black uppercase">REQUIRED FOR EVERY LOGIN</p>
+                    <div className="mt-2 p-2 bg-blue-500/5 rounded-lg">
+                      <p className="text-[7px] text-blue-300">🔢 Save this PIN - you'll need it every time you log in</p>
+                    </div>
                  </div>
 
                  <div className="bg-black/60 p-5 rounded-3xl border border-white/5 space-y-1">
-                    <label className="text-[7px] text-blue-400 font-black uppercase tracking-widest">Bech32m-Extended Address</label>
+                    <label className="text-[7px] text-blue-400 font-black uppercase tracking-widest">Blockchain Address</label>
                     <p className="text-[9px] text-blue-300 mono break-all leading-relaxed p-2 bg-blue-500/5 rounded-xl border border-blue-500/10">{newlyCreatedUser.publicKey}</p>
+                    <div className="mt-2 p-2 bg-blue-500/5 rounded-lg">
+                      <p className="text-[7px] text-blue-300">🌐 Your public address for receiving QBS tokens and transactions</p>
+                    </div>
                  </div>
 
                  <div className="bg-black/60 p-5 rounded-3xl border border-white/5 space-y-1">
                     <label className="text-[7px] text-gray-500 font-black uppercase tracking-widest">Master Access Secret</label>
                     <p className="text-xs font-black text-white mono p-2 bg-white/5 rounded-xl">••••••••••••••••••••</p>
                     <p className="text-[8px] text-gray-400 mt-2">Secret generated and secured. Please save it safely.</p>
+                    <div className="mt-2 p-2 bg-gray-500/5 rounded-lg">
+                      <p className="text-[7px] text-gray-400">🔒 Your encrypted password is safely stored and can be changed in Settings</p>
+                    </div>
                  </div>
               </div>
 
-              <div className="bg-red-500/10 p-5 rounded-2xl border border-red-500/20 text-center">
-                <p className="text-[9px] text-red-500 font-black uppercase leading-relaxed tracking-tighter">
-                  SECURITY WARNING: System utilizes PBKDF2 iterations. Key loss results in permanent data entropy.
-                </p>
+              {/* Platform Features Info */}
+              <div className="bg-green-500/10 p-5 rounded-2xl border border-green-500/20 space-y-3">
+                <div className="text-center">
+                  <div className="w-8 h-8 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-lg">🚀</span>
+                  </div>
+                  <h3 className="text-[10px] text-green-500 font-black uppercase tracking-widest">What's Next?</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[7px] text-green-400">
+                  <div className="space-y-1">
+                    <p><strong>🔬 Start Mining:</strong> Earn QBS tokens through scientific breakthroughs</p>
+                    <p><strong>🔗 Connect Wallet:</strong> Link your MetaMask for blockchain transactions</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p><strong>⚙️ Visit Settings:</strong> Customize your profile and security</p>
+                    <p><strong>🎓 Get API Key:</strong> Add DeepSeek AI key for breakthrough evaluation</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Settings Dashboard Info */}
+              <div className="bg-purple-500/10 p-5 rounded-2xl border border-purple-500/20 text-center space-y-2">
+                <div className="w-8 h-8 bg-purple-500/20 text-purple-500 rounded-full flex items-center justify-center mx-auto">
+                  <span className="text-lg">⚙️</span>
+                </div>
+                <h3 className="text-[10px] text-purple-500 font-black uppercase tracking-widest">Settings Dashboard Access</h3>
+                <div className="text-[8px] text-purple-400 leading-relaxed space-y-1">
+                  <p>After logging in, click the <strong>Settings</strong> button to:</p>
+                  <p>• <strong>Change Username & Password</strong> - Update your login credentials</p>
+                  <p>• <strong>Modify Security Code</strong> - Change your PIN for enhanced security</p>
+                  <p>• <strong>Update Profile Info</strong> - Edit bio, tagline, and personal details</p>
+                  <p>• <strong>Manage API Keys</strong> - Add/remove DeepSeek and other service keys</p>
+                  <p>• <strong>Export Account Data</strong> - Backup your profile and transaction history</p>
+                </div>
               </div>
 
               <button 
                 onClick={() => onLogin(newlyCreatedUser)}
-                className="w-full py-5 bg-orange-500 text-black rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] hover:bg-orange-400 transition-all"
+                className="w-full py-5 bg-orange-500 text-black rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] hover:bg-orange-400 transition-all shadow-xl shadow-orange-500/20"
               >
-                ACTIVATE NODE
+                🚀 ENTER SOVEREIGN LATTICE PLATFORM
               </button>
+
+              <div className="text-center space-y-2">
+                <p className="text-[7px] text-gray-500 uppercase font-black tracking-widest">Remember:</p>
+                <p className="text-[8px] text-gray-400 leading-relaxed">
+                  Save all credentials above • Visit Settings to customize your account • 
+                  Start mining to earn QBS tokens • Connect MetaMask for blockchain features
+                </p>
+              </div>
             </div>
           )}
         </div>

@@ -109,116 +109,34 @@ export const initLatticeRegistry = async (): Promise<void> => {
     const genesisCheck = await getUserObject(ADMIN_ID);
     
     if (!genesisCheck) {
-      console.log("Initializing Genesis Node Registry...");
-      const salt = generateSalt();
-      // Generate random genesis password for security
-      const genesisPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      const passwordHash = await hashSecret(genesisPassword, salt);
+      console.log("Initializing Sovereign Lattice Platform...");
       
-      const ADJECTIVES = ["Non-local", "Supersymmetric", "Entropy-bound", "Asymptotic", "Coherent", "Topological", "Relativistic", "Quantized", "Emergent", "Holographic"];
-      const NOUNS = ["Singularity", "Metric", "Field", "Lattice", "Boson", "Tachyon", "Flux", "Wavefunction", "Manifold", "Tensor"];
-      const FRONTIERS = ["Calabi-Yau Compactification", "Schwinger Effect Verification", "Majorana Fermion Stability", "Dark Energy Scalar Coupling", "Yang-Mills Existence Gap", "Riemannian Manifold Curvature", "Hawking Radiation Information Preservation", "Penrose Tiling Quasicrystals", "Landau Level Transitions", "Bose-Einstein Condensate Turbulence"];
-
-      const genesisBlocks: SolvedBlock[] = [];
-      for (let i = 1; i <= 1000; i++) {
-        const tokenId = Math.floor((i - 1) / QBS_UNITS.SHD) + 1;
-        const shardIdInToken = ((i - 1) % QBS_UNITS.SHD) + 1;
-        const master = getMasterBreakthrough(tokenId);
-        
-        const adj = ADJECTIVES[i % ADJECTIVES.length];
-        const noun = NOUNS[i % NOUNS.length];
-        const frontier = FRONTIERS[i % FRONTIERS.length];
-        
-        const problem = `Scientific Resolution ${i}: Mapping the ${adj} variance across the ${noun} manifold. Initial observations suggest a parity breach during the ${master} phase. Analysis required for ${frontier} stability.`;
-        const explanation = `Success: Through recursive ${adj} field mapping, we have stabilized the ${noun} flux. This resolution provides the mathematical certainty required for ${frontier}, proving that the ${adj} constants are invariant under the Sovereign Lattice. SHA-256 integrity confirmed.`;
-
-        genesisBlocks.push({
-          id: `GENESIS-SHD-${i.toString().padStart(4, '0')}`,
-          shardId: `SHD-G-${i}`,
-          shardIndex: i,
-          shardParentId: `SHD-${shardIdInToken}`,
-          tokenParentId: `QBS-${tokenId}`,
-          totalShardsPerToken: 1000,
-          timestamp: new Date().toLocaleString(),
-          problem,
-          answer: `SIG_VAL_${i.toString(16).toUpperCase()}`,
-          explanation,
-          reward: 1.0, 
-          payoutPerShard: "$1,000,000.00",
-          difficulty: "MAX_GENESIS_RESOLUTION",
-          hash: `00000000000000${Math.random().toString(16).slice(2)}`,
-          parentHash: i === 1 ? "0".repeat(64) : genesisBlocks[i-2].hash,
-          integrityHash: `ROOT_${i}`,
-          isPeerReviewed: true,
-          advancementLevel: 1,
-          advancementHistory: [],
-          grade: 'S',
-          breakthroughScore: 99
-        });
-      }
-
-      const genesisUser: User = {
-        address: ADMIN_ID,
-        publicKey: ADMIN_ID,
-        privateKey: "LATTICE-PRV-GENESIS-MASTER",
-        profileId: "GENESIS#0001",
-        mnemonic: "photon photon photon hadron hadron hadron",
-        username: "Genesis",
-        passwordHash,
-        password: genesisPassword,
-        salt,
-        securityCode: "00000",
-        role: 'admin',
-        balance: 1000.0,
-        usdBalance: 1000000000,
-        contacts: [],
-        transactions: [{
-          id: "TX-GENESIS-ALLOC-1K",
-          timestamp: new Date().toLocaleString(),
-          type: 'CREDIT',
-          amount: "1000",
-          unit: 'QBS',
-          description: "Genesis Magnitude Allocation (1,000 Detailed Breakthroughs)"
-        }],
-        incidents: [],
-        solvedBlocks: genesisBlocks,
-        ownedNfts: [],
-        shardsTowardNextQBS: 0,
-        messagingActive: true,
-        miningActive: true,
-        xp: 250000,
-        level: 30,
-        tagline: "The First Observer",
-        bio: "Master Node for the Sovereign Lattice. Architect of the 10,000 breakthrough cap. Observing the resolution of 1,000 primary shards of the universe."
-      };
-      await saveUser(genesisUser);
-      
-      // Initialize founder account (for development/testing)
+      // Initialize ONLY the Founder account
       const founderSalt = generateSalt();
-      const founderPasswordHash = await hashSecret("founder2026", founderSalt);
+      const founderPasswordHash = await hashSecret("LATTICE-FREQUENCY-7777-BETA-PRIME-SHARD-Z-111", founderSalt);
       
       const founderUser: User = {
         address: "0x" + Math.random().toString(16).substring(2, 42).padStart(40, '0'),
         publicKey: "FOUNDER-PUB-" + Math.random().toString(36).substring(2, 15).toUpperCase(),
         privateKey: "FOUNDER-PRV-" + Math.random().toString(36).substring(2, 15).toUpperCase(),
         profileId: "FOUNDER#0001",
-        mnemonic: "sovereign lattice quantum breakthrough discovery innovation research science technology future progress",
-        username: "Founder",
+        mnemonic: "freedom lattice quantum breakthrough discovery innovation research science technology future progress",
+        username: "Freedom24/71998",
         passwordHash: founderPasswordHash,
-        password: "founder2026",
+        password: "LATTICE-FREQUENCY-7777-BETA-PRIME-SHARD-Z-111",
         salt: founderSalt,
-        securityCode: "99999",
+        securityCode: "10110",
         role: 'admin',
-        balance: 500.0,
-        usdBalance: 250000,
+        balance: 1000.0,
+        usdBalance: 1000000,
         contacts: [],
         transactions: [{
-          id: "TX-FOUNDER-INIT-500",
+          id: "TX-FOUNDER-INIT-1000",
           timestamp: new Date().toLocaleString(),
           type: 'CREDIT',
-          amount: "500",
+          amount: "1000",
           unit: 'QBS',
-          description: "Founder Initial Allocation"
+          description: "Founder Initial Allocation - Platform Owner"
         }],
         incidents: [],
         solvedBlocks: [],
@@ -226,15 +144,16 @@ export const initLatticeRegistry = async (): Promise<void> => {
         shardsTowardNextQBS: 0,
         messagingActive: true,
         miningActive: true,
-        xp: 25000,
-        level: 15,
-        tagline: "Platform Founder",
-        bio: "Creator of the Sovereign Lattice quantum cryptocurrency platform."
+        xp: 100000,
+        level: 50,
+        tagline: "Platform Founder & Owner",
+        bio: "Founder and owner of the Sovereign Lattice quantum cryptocurrency platform. Master of 1000 QBS tokens."
       };
       await saveUser(founderUser);
       
-      console.log("Genesis Node Registry Finalized.");
-      console.log("Founder account initialized: Founder");
+      console.log("Sovereign Lattice Platform Initialized.");
+      console.log("Founder account created: Freedom24/71998");
+      console.log("Balance: 1000 QBS tokens");
     }
   } catch (err) {
     console.error("Registry Initialization Failed:", err);
