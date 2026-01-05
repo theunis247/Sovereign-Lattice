@@ -1,0 +1,25 @@
+{
+  "name": "sovereign-lattice",
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "DEEPSEEK_API_KEY": "@deepseek-api-key",
+    "PRIVATE_KEY": "@private-key",
+    "SEPOLIA_RPC_URL": "@sepolia-rpc-url",
+    "ETHERSCAN_API_KEY": "@etherscan-api-key"
+  }
+}

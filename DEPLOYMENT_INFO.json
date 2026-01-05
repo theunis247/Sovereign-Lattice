@@ -1,0 +1,28 @@
+{
+  "name": "Sovereign Lattice - Quantum Cryptocurrency Platform",
+  "description": "AI-powered scientific research meets blockchain rewards",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "nodeVersion": "18.x",
+  "environmentVariables": {
+    "required": [
+      "DEEPSEEK_API_KEY (for AI evaluation)",
+      "PRIVATE_KEY (for blockchain deployment)",
+      "SEPOLIA_RPC_URL (for testnet)",
+      "ETHERSCAN_API_KEY (for verification)"
+    ],
+    "optional": [
+      "POLYGON_RPC_URL",
+      "MUMBAI_RPC_URL",
+      "POLYGONSCAN_API_KEY"
+    ]
+  },
+  "features": [
+    "🔬 AI-powered scientific mining",
+    "💎 Real ERC-20 cryptocurrency (QBS tokens)",
+    "🔐 Military-grade security",
+    "🚀 MetaMask integration",
+    "📊 Transaction history",
+    "🌐 Multi-network support"
+  ]
+}
