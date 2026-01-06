@@ -45,7 +45,41 @@ const WalletConnector: React.FC<WalletConnectorProps> = ({ onWalletStateChange }
   };
 
   const handleDisconnect = async () => {
-    await walletConnector.disconnect();
+    try {
+      setError(null);
+      // Show disconnecting state
+      setIsConnecting(true);
+      
+      await walletConnector.disconnect();
+      
+      // Force update the wallet state
+      setWalletState({
+        isConnected: false,
+        address: null,
+        chainId: null,
+        balance: '0',
+        isMetaMaskInstalled: true,
+        networkName: null
+      });
+      
+      console.log('✅ Wallet disconnected successfully from UI');
+      
+    } catch (error: any) {
+      console.error('❌ Disconnect error:', error);
+      setError(`Disconnect failed: ${error.message}`);
+      
+      // Force disconnect even if there's an error
+      setWalletState({
+        isConnected: false,
+        address: null,
+        chainId: null,
+        balance: '0',
+        isMetaMaskInstalled: true,
+        networkName: null
+      });
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleSwitchNetwork = async (chainId: number) => {
@@ -145,9 +179,17 @@ const WalletConnector: React.FC<WalletConnectorProps> = ({ onWalletStateChange }
         </div>
         <button
           onClick={handleDisconnect}
-          className="text-xs text-gray-500 hover:text-white transition-colors"
+          disabled={isConnecting}
+          className="text-xs text-gray-500 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors px-2 py-1 rounded border border-gray-600 hover:border-red-400 flex items-center gap-1"
         >
-          Disconnect
+          {isConnecting ? (
+            <>
+              <div className="w-2 h-2 border border-gray-400/30 border-t-gray-400 rounded-full animate-spin"></div>
+              Disconnecting...
+            </>
+          ) : (
+            'Disconnect'
+          )}
         </button>
       </div>
 

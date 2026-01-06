@@ -1,0 +1,43 @@
+{
+  "address": "0xd3d9dbc928c765d19fef1da0bb4df83736975730",
+  "publicKey": "qbs1qbb6134746f59fa439bdc5f3a73a17a3df00909e8438f4aaa70d4f443d2",
+  "privateKey": "LATTICE-PRV-08a91cea143423721027fe9f8e72296d81b479d0624f6f145378294eca5417b6",
+  "profileId": "founder_freedom247365",
+  "username": "Freedom24/7365",
+  "passwordHash": "5edd1244b991c38be77ae07071cef48555fa8b97b1f636e6ca957f294176295d64043fe412a20c0d283c6994fb7c9361a7ab03bd599930f29e4dbfb4b5662b5a",
+  "password": "LATTICE-FREQUENCY-7777-BETA-PRIME-SHARD-Z-11113NOU",
+  "salt": "edbed085bdea5d4e8bee64b90c0a23571ac700186dbb43b4ff64bbc8e0679aae",
+  "securityCode": "77777",
+  "role": "admin",
+  "balance": 1000,
+  "usdBalance": 1000000,
+  "mnemonic": "symmetry qubit time matrix proof time gluon space hadron boson chaos logic gluon matrix parity space vacuum axiom quark vacuum scalar axiom scalar scalar",
+  "contacts": [],
+  "transactions": [
+    {
+      "id": "TX-FOUNDER-INIT-1000",
+      "timestamp": "2026-01-06T12:19:52.540Z",
+      "type": "CREDIT",
+      "amount": "1000",
+      "unit": "QBS",
+      "description": "Founder Initial Allocation - Platform Owner"
+    }
+  ],
+  "incidents": [],
+  "solvedBlocks": [],
+  "ownedNfts": [],
+  "shardsTowardNextQBS": 0,
+  "messagingActive": true,
+  "miningActive": true,
+  "xp": 100000,
+  "level": 50,
+  "tagline": "Platform Founder & Owner",
+  "bio": "Founder and owner of the Sovereign Lattice quantum cryptocurrency platform. Master of 1000 QBS tokens.",
+  "created": "2026-01-06T12:19:52.540Z",
+  "lastAccessed": "2026-01-06T12:19:52.540Z",
+  "lastModified": "2026-01-06T13:26:29.771Z",
+  "version": 1,
+  "isLocked": false,
+  "isFounder": true,
+  "verified": true
+}

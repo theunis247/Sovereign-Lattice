@@ -1,0 +1,27 @@
+{
+  "profileId": "founder_freedom247365",
+  "username": "Freedom24/7365",
+  "displayName": "Founder - Freedom24/7365",
+  "securityLevel": "SECRET",
+  "encryptionConfig": {
+    "algorithm": "AES-GCM",
+    "keyLength": 256,
+    "rotationInterval": 30,
+    "backupEncryption": true
+  },
+  "qbsBalance": 1000,
+  "permissions": [
+    "admin",
+    "founder",
+    "all_access"
+  ],
+  "isFounder": true,
+  "isAdmin": true,
+  "verified": true,
+  "created": "2026-01-06T12:19:52.540Z",
+  "lastAccessed": "2026-01-06T12:19:52.540Z",
+  "lastModified": "2026-01-06T13:26:29.776Z",
+  "version": 1,
+  "isLocked": false,
+  "balance": 1000
+}

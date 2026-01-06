@@ -8,27 +8,47 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: "25578",
-        HOST: "0.0.0.0"
+        HOST: "0.0.0.0",
+        DATABASE_PERSISTENT: "true",
+        BACKUP_ENABLED: "true",
+        DATA_DIRECTORY: "./data",
+        LOGS_DIRECTORY: "./logs"
       },
       env_production: {
         NODE_ENV: "production",
         PORT: "25578",
-        HOST: "0.0.0.0"
+        HOST: "0.0.0.0",
+        DATABASE_PERSISTENT: "true",
+        BACKUP_ENABLED: "true",
+        DATA_DIRECTORY: "./data",
+        LOGS_DIRECTORY: "./logs"
       },
       env_staging: {
         NODE_ENV: "staging",
         PORT: "25579",
-        HOST: "0.0.0.0"
+        HOST: "0.0.0.0",
+        DATABASE_PERSISTENT: "true",
+        BACKUP_ENABLED: "true",
+        DATA_DIRECTORY: "./data",
+        LOGS_DIRECTORY: "./logs"
       },
       env_development: {
         NODE_ENV: "development",
         PORT: "3000",
-        HOST: "0.0.0.0"
+        HOST: "0.0.0.0",
+        DATABASE_PERSISTENT: "true",
+        BACKUP_ENABLED: "true",
+        DATA_DIRECTORY: "./data",
+        LOGS_DIRECTORY: "./logs"
       },
       env_pterodactyl: {
         NODE_ENV: "production",
         PORT: "25578",
         HOST: "0.0.0.0",
+        DATABASE_PERSISTENT: "true",
+        BACKUP_ENABLED: "true",
+        DATA_DIRECTORY: "./data",
+        LOGS_DIRECTORY: "./logs",
         // Pterodactyl-specific optimizations
         PM2_SERVE_PATH: "./dist",
         PM2_SERVE_PORT: "25578",
@@ -60,7 +80,9 @@ module.exports = {
       exponential_backoff_restart_delay: 100,
       // Memory and CPU monitoring
       monitoring: true,
-      pmx: true
+      pmx: true,
+      // Pre-start hooks for data persistence
+      pre_start: "node scripts/init-database.cjs && node scripts/create-founder-profile.cjs"
     },
     {
       name: "quantum-simulator-static",
@@ -69,15 +91,21 @@ module.exports = {
       cwd: "./",
       env: {
         NODE_ENV: "production",
-        PORT: "25578"
+        PORT: "25578",
+        DATABASE_PERSISTENT: "true",
+        DATA_DIRECTORY: "./data"
       },
       env_production: {
         NODE_ENV: "production", 
-        PORT: "25578"
+        PORT: "25578",
+        DATABASE_PERSISTENT: "true",
+        DATA_DIRECTORY: "./data"
       },
       env_pterodactyl: {
         NODE_ENV: "production",
-        PORT: "25578"
+        PORT: "25578",
+        DATABASE_PERSISTENT: "true",
+        DATA_DIRECTORY: "./data"
       },
       instances: 1,
       autorestart: true,
@@ -105,8 +133,8 @@ module.exports = {
       repo: "git@github.com:username/quantum-simulator.git",
       path: "/var/www/quantum-simulator",
       "pre-deploy-local": "",
-      "post-deploy": "npm install && npm run build && pm2 reload ecosystem.config.cjs --env production",
-      "pre-setup": ""
+      "post-deploy": "npm install && npm run profile:setup && npm run build && pm2 reload ecosystem.config.cjs --env production",
+      "pre-setup": "mkdir -p data logs"
     },
     staging: {
       user: "node", 
@@ -115,8 +143,8 @@ module.exports = {
       repo: "git@github.com:username/quantum-simulator.git",
       path: "/var/www/quantum-simulator-staging",
       "pre-deploy-local": "",
-      "post-deploy": "npm install && npm run build && pm2 reload ecosystem.config.cjs --env staging",
-      "pre-setup": ""
+      "post-deploy": "npm install && npm run profile:setup && npm run build && pm2 reload ecosystem.config.cjs --env staging",
+      "pre-setup": "mkdir -p data logs"
     },
     pterodactyl: {
       user: "container",
@@ -125,8 +153,8 @@ module.exports = {
       repo: "git@github.com:username/quantum-simulator.git",
       path: "/home/container/quantum-simulator",
       "pre-deploy-local": "",
-      "post-deploy": "npm install && npm run build && pm2 reload ecosystem.config.cjs --env pterodactyl",
-      "pre-setup": "mkdir -p logs"
+      "post-deploy": "npm install && npm run profile:setup && npm run build && pm2 reload ecosystem.config.cjs --env pterodactyl",
+      "pre-setup": "mkdir -p data logs"
     }
   }
 };

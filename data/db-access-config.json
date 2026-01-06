@@ -1,0 +1,16 @@
+{
+  "type": "file-based",
+  "dataDirectory": "E:\\Projects\\BS\\Sovereign Lattice Platform and Crypto Currency\\data",
+  "collections": {
+    "users": "E:\\Projects\\BS\\Sovereign Lattice Platform and Crypto Currency\\data\\users",
+    "profiles": "E:\\Projects\\BS\\Sovereign Lattice Platform and Crypto Currency\\data\\profiles",
+    "credentials": "E:\\Projects\\BS\\Sovereign Lattice Platform and Crypto Currency\\data\\credentials",
+    "transactions": "E:\\Projects\\BS\\Sovereign Lattice Platform and Crypto Currency\\data\\transactions",
+    "backups": "E:\\Projects\\BS\\Sovereign Lattice Platform and Crypto Currency\\data\\backups"
+  },
+  "indexedDB": {
+    "fallback": true,
+    "name": "QuantumSecureLattice_v8",
+    "version": 1
+  }
+}

@@ -1,0 +1,178 @@
+/* Sovereign Lattice Platform - Main Styles */
+
+/* Tailwind CSS directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom animations */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(247, 147, 26, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(247, 147, 26, 0.6); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-from-top {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-from-bottom {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Custom utility classes */
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.slide-in-from-top-4 {
+  animation: slide-in-from-top 0.5s ease-out;
+}
+
+.slide-in-from-bottom-4 {
+  animation: slide-in-from-bottom 0.5s ease-out;
+}
+
+.zoom-in-95 {
+  animation: zoom-in 0.5s ease-out;
+}
+
+/* Duration utilities */
+.duration-500 {
+  animation-duration: 0.5s;
+}
+
+.duration-700 {
+  animation-duration: 0.7s;
+}
+
+/* Custom component styles */
+.quantum-glow {
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+}
+
+.quantum-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+}
+
+.orange-glow {
+  box-shadow: 0 0 10px rgba(247, 147, 26, 0.3);
+}
+
+.orange-glow:hover {
+  box-shadow: 0 0 20px rgba(247, 147, 26, 0.5);
+}
+
+/* Form input focus states */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(247, 147, 26, 0.3);
+}
+
+/* Button active states */
+button:active {
+  transform: scale(0.98);
+}
+
+/* Scrollbar improvements */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(247, 147, 26, 0.3) transparent;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top: 2px solid #f7931a;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .text-4xl {
+    font-size: 2rem;
+  }
+  
+  .text-3xl {
+    font-size: 1.5rem;
+  }
+  
+  .p-10 {
+    padding: 1.5rem;
+  }
+  
+  .rounded-3xl {
+    border-radius: 1rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .bg-black, .bg-zinc-900 {
+    background: white !important;
+  }
+  
+  .text-white {
+    color: black !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .bg-zinc-900\/60 {
+    background-color: rgba(0, 0, 0, 0.9) !important;
+  }
+  
+  .border-white\/10 {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

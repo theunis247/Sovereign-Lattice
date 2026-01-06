@@ -109,8 +109,114 @@ export class WalletConnector {
   }
 
   public async disconnect(): Promise<void> {
-    this.signer = null;
-    this.notifyStateChange();
+    try {
+      // Clear the signer first
+      this.signer = null;
+      
+      // Clear any stored connection state in localStorage and sessionStorage
+      if (typeof window !== 'undefined') {
+        const keysToRemove = [
+          'walletconnect',
+          'WALLETCONNECT_DEEPLINK_CHOICE',
+          'metamask-connected',
+          'wallet-connected',
+          'connected-account',
+          'wallet-state'
+        ];
+        
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
+      }
+      
+      // Remove all event listeners to prevent reconnection
+      if (this.provider) {
+        try {
+          // Remove specific event listeners
+          this.provider.removeAllListeners?.('accountsChanged');
+          this.provider.removeAllListeners?.('chainChanged');
+          this.provider.removeAllListeners?.('connect');
+          this.provider.removeAllListeners?.('disconnect');
+        } catch (listenerError) {
+          console.log('Could not remove event listeners:', listenerError);
+        }
+        
+        // Try to revoke permissions (MetaMask specific)
+        try {
+          await this.provider.request({
+            method: 'wallet_revokePermissions',
+            params: [{
+              eth_accounts: {}
+            }]
+          });
+          console.log('✅ MetaMask permissions revoked successfully');
+        } catch (revokeError: any) {
+          // If revokePermissions is not supported, try alternative methods
+          console.log('Permission revocation not supported, trying alternative disconnect methods');
+          
+          // Try to disconnect using the provider's disconnect method
+          if (this.provider.disconnect && typeof this.provider.disconnect === 'function') {
+            try {
+              await this.provider.disconnect();
+              console.log('✅ Provider disconnect method called');
+            } catch (disconnectError) {
+              console.log('Provider disconnect method failed:', disconnectError);
+            }
+          }
+          
+          // Force clear connection by requesting accounts with empty result
+          try {
+            await this.provider.request({
+              method: 'eth_requestAccounts',
+              params: []
+            });
+          } catch (requestError) {
+            // This is expected to fail, which helps clear the connection
+            console.log('Account request cleared (expected behavior)');
+          }
+        }
+        
+        // Re-setup event listeners for future connections
+        this.setupEventListeners();
+      }
+      
+      // Notify all listeners of the disconnected state
+      this.notifyStateChange();
+      
+      console.log('✅ Wallet disconnected successfully - all state cleared');
+      
+      // Optional: Show user instruction for complete disconnect
+      if (typeof window !== 'undefined' && window.confirm) {
+        setTimeout(() => {
+          const userWantsInstructions = window.confirm(
+            'Wallet disconnected from app. For complete security, also disconnect from MetaMask extension directly. Show instructions?'
+          );
+          if (userWantsInstructions) {
+            alert('To fully disconnect:\n1. Open MetaMask extension\n2. Click the account menu\n3. Select "Disconnect" for this site\n4. Refresh the page');
+          }
+        }, 1000);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error during wallet disconnect:', error);
+      // Even if there's an error, ensure local state is cleared
+      this.signer = null;
+      
+      // Force clear all storage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+          console.log('✅ Forced storage clear completed');
+        } catch (storageError) {
+          console.error('Could not clear storage:', storageError);
+        }
+      }
+      
+      this.notifyStateChange();
+      throw new Error(`Disconnect failed: ${error.message}`);
+    }
   }
 
   public async getWalletState(): Promise<WalletState> {

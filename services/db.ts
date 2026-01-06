@@ -2,6 +2,7 @@
 // @google/genai guidelines followed for model selection and response handling
 import { User, Contact, Transaction, QBSNFT, SolvedBlock } from '../types';
 import { getMasterBreakthrough, getShardScientificFocus, getCosmicDomain, QBS_UNITS } from './quantumLogic';
+import { productionDB } from './productionDatabase';
 
 const DB_NAME = 'QuantumSecureLattice_v8'; 
 const DB_VERSION = 1; 
@@ -12,6 +13,9 @@ const LATTICE_PEPPER = "k7$!v9QzP@m3L#r8_Quantum_Sovereign_999";
 export const ADMIN_ID = "qbs1qpxr9y7g9dw0sn54kce6mua7lqpzry9x8gf2tvdw0s3jn54khce6mua7lqpzry9x8gf2tvdw0s3jn54khce6mua7lqpzry9x8gf2tvdw0s3jn54khce6mua7lw2p";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+
+// Check if we're in production environment
+const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_PERSISTENT === 'true';
 
 const BECH32_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
@@ -104,62 +108,22 @@ const getDB = (): Promise<IDBDatabase> => {
 
 export const initLatticeRegistry = async (): Promise<void> => {
   try {
-    // Check if Founder account already exists
-    const founderCheck = await getUserByIdentifier("Freedom24/71998");
+    // Initialize production database
+    await productionDB.initialize();
     
-    if (!founderCheck) {
-      console.log("Initializing Sovereign Lattice Platform...");
-      
-      // Initialize ONLY the Founder account
-      const founderSalt = generateSalt();
-      const founderPasswordHash = await hashSecret("LATTICE-FREQUENCY-7777-BETA-PRIME-SHARD-Z-111", founderSalt);
-      
-      const founderUser: User = {
-        address: "0x" + Math.random().toString(16).substring(2, 42).padStart(40, '0'),
-        publicKey: "FOUNDER-PUB-" + Math.random().toString(36).substring(2, 15).toUpperCase(),
-        privateKey: "FOUNDER-PRV-" + Math.random().toString(36).substring(2, 15).toUpperCase(),
-        profileId: "FOUNDER#0001",
-        mnemonic: "freedom lattice quantum breakthrough discovery innovation research science technology future progress",
-        username: "Freedom24/71998",
-        passwordHash: founderPasswordHash,
-        password: "LATTICE-FREQUENCY-7777-BETA-PRIME-SHARD-Z-111",
-        salt: founderSalt,
-        securityCode: "10110",
-        role: 'admin',
-        balance: 1000.0,
-        usdBalance: 1000000,
-        contacts: [],
-        transactions: [{
-          id: "TX-FOUNDER-INIT-1000",
-          timestamp: new Date().toLocaleString(),
-          type: 'CREDIT',
-          amount: "1000",
-          unit: 'QBS',
-          description: "Founder Initial Allocation - Platform Owner"
-        }],
-        incidents: [],
-        solvedBlocks: [],
-        ownedNfts: [],
-        shardsTowardNextQBS: 0,
-        messagingActive: true,
-        miningActive: true,
-        xp: 100000,
-        level: 50,
-        tagline: "Platform Founder & Owner",
-        bio: "Founder and owner of the Sovereign Lattice quantum cryptocurrency platform. Master of 1000 QBS tokens."
-      };
-      await saveUser(founderUser);
-      
-      console.log("Sovereign Lattice Platform Initialized.");
-      console.log("Founder account created: Freedom24/71998");
-      console.log("Balance: 1000 QBS tokens");
-    }
+    // Initialize founder profile
+    await productionDB.initializeFounderProfile();
   } catch (err) {
     console.error("Registry Initialization Failed:", err);
   }
 };
 
 export const saveUser = async (user: User): Promise<void> => {
+  if (isProduction) {
+    return await productionDB.saveUser(user);
+  }
+  
+  // Fallback to IndexedDB for development
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_USERS, 'readwrite');
@@ -174,6 +138,11 @@ export const saveUser = async (user: User): Promise<void> => {
 };
 
 export const getAllUsers = async (): Promise<User[]> => {
+  if (isProduction) {
+    return await productionDB.getAllUsers();
+  }
+  
+  // Fallback to IndexedDB for development
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_USERS, 'readonly');
@@ -188,6 +157,11 @@ export const getAllUsers = async (): Promise<User[]> => {
 };
 
 export const getUserObject = async (address: string): Promise<User | null> => {
+  if (isProduction) {
+    return await productionDB.getUserByAddress(address);
+  }
+  
+  // Fallback to IndexedDB for development
   try {
     const db = await getDB();
     return new Promise((resolve) => {
@@ -203,16 +177,26 @@ export const getUserObject = async (address: string): Promise<User | null> => {
 };
 
 export const getUserByIdentifier = async (identifier: string): Promise<User | null> => {
+  if (isProduction) {
+    return await productionDB.getUserByIdentifier(identifier);
+  }
+  
+  // Fallback to IndexedDB for development
   const users = await getAllUsers();
   const searchLower = identifier.toLowerCase();
   return users.find(u => 
     u.username.toLowerCase() === searchLower || 
     u.address === identifier || 
-    u.profileId.toLowerCase() === searchLower
+    u.profileId?.toLowerCase() === searchLower
   ) || null;
 };
 
 export const getUserByMnemonic = async (mnemonic: string): Promise<User | null> => {
+  if (isProduction) {
+    return await productionDB.getUserByMnemonic(mnemonic);
+  }
+  
+  // Fallback to IndexedDB for development
   const users = await getAllUsers();
   return users.find(u => u.mnemonic?.toLowerCase().trim() === mnemonic.toLowerCase().trim()) || null;
 };
