@@ -3,6 +3,7 @@
 import { User, Contact, Transaction, QBSNFT, SolvedBlock } from '../types';
 import { getMasterBreakthrough, getShardScientificFocus, getCosmicDomain, QBS_UNITS } from './quantumLogic';
 import { productionDB } from './productionDatabase';
+import { realDB } from './realDatabaseIntegration';
 
 const DB_NAME = 'QuantumSecureLattice_v8'; 
 const DB_VERSION = 1; 
@@ -229,6 +230,18 @@ export const getUserObject = async (address: string): Promise<User | null> => {
 };
 
 export const getUserByIdentifier = async (identifier: string): Promise<User | null> => {
+  // Try real database first (SQLite/PostgreSQL/MySQL)
+  try {
+    const realUser = await realDB.getUserByIdentifier(identifier);
+    if (realUser) {
+      console.log('✅ User found in real database:', identifier);
+      return realUser;
+    }
+  } catch (error) {
+    console.log('⚠️ Real database not available, trying production DB');
+  }
+
+  // Fallback to production file-based database
   if (isProduction) {
     return await productionDB.getUserByIdentifier(identifier);
   }
