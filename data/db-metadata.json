@@ -1,6 +1,12 @@
 {
-  "initialized": "2026-01-06T13:26:21.771Z",
+  "initialized": true,
   "version": "1.0.0",
-  "persistent": true,
-  "backupEnabled": true
+  "environment": "production",
+  "databaseType": "file-based",
+  "founderCreated": true,
+  "founderUsername": "Freedom24/7365",
+  "founderAddress": "0xd3d9dbc928c765d19fef1da0bb4df83736975730",
+  "totalUsers": 1,
+  "created": "2026-01-06T13:56:00.438Z",
+  "lastUpdated": "2026-01-06T13:56:00.438Z"
 }
