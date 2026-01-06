@@ -116,6 +116,25 @@ export class ProductionDatabaseManager {
       await this.initialize();
     }
 
+    // Validate input
+    if (!user || typeof user !== 'object') {
+      throw new Error('Invalid user object provided to saveUser');
+    }
+
+    // Import safe registry service for validation
+    const { safeRegistry } = await import('./safeRegistryService');
+
+    // Validate and fix user structure before saving
+    const validationResult = safeRegistry.validateAndFixUserStructure(user);
+    
+    if (validationResult.errors.length > 0) {
+      throw new Error(`User validation failed: ${validationResult.errors.join(', ')}`);
+    }
+    
+    if (validationResult.fixedFields.length > 0) {
+      console.warn(`Fixed missing fields before saving user ${user.username}:`, validationResult.fixedFields);
+    }
+
     if (this.dbType === 'file') {
       await this.saveUserToFile(user);
     } else {
@@ -131,11 +150,43 @@ export class ProductionDatabaseManager {
       await this.initialize();
     }
 
-    if (this.dbType === 'file') {
-      return await this.getUserFromFile(address);
-    } else {
-      return await this.getUserFromIndexedDB(address);
+    // Validate input
+    if (!address || typeof address !== 'string' || address.trim().length === 0) {
+      console.warn('Invalid address provided to getUserByAddress');
+      return null;
     }
+
+    // Import safe registry service for validation
+    const { safeRegistry } = await import('./safeRegistryService');
+
+    let user: User | null = null;
+
+    if (this.dbType === 'file') {
+      user = await this.getUserFromFile(address.trim());
+    } else {
+      user = await this.getUserFromIndexedDB(address.trim());
+    }
+
+    if (user) {
+      // Validate and fix user structure
+      const validationResult = safeRegistry.validateAndFixUserStructure(user);
+      
+      if (validationResult.fixedFields.length > 0) {
+        console.warn(`Fixed missing fields for user ${user.username}:`, validationResult.fixedFields);
+        // Save the fixed user data
+        try {
+          await this.saveUser(user);
+        } catch (error) {
+          console.warn('Failed to save fixed user data:', error);
+        }
+      }
+      
+      if (validationResult.errors.length > 0) {
+        console.error('User validation errors:', validationResult.errors);
+      }
+    }
+
+    return user;
   }
 
   /**
@@ -146,11 +197,37 @@ export class ProductionDatabaseManager {
       await this.initialize();
     }
 
+    // Import safe registry service for validation
+    const { safeRegistry } = await import('./safeRegistryService');
+
+    let user: User | null = null;
+
     if (this.dbType === 'file') {
-      return await this.getUserByIdentifierFromFile(identifier);
+      user = await this.getUserByIdentifierFromFile(identifier);
     } else {
-      return await this.getUserByIdentifierFromIndexedDB(identifier);
+      user = await this.getUserByIdentifierFromIndexedDB(identifier);
     }
+
+    if (user) {
+      // Validate and fix user structure
+      const validationResult = safeRegistry.validateAndFixUserStructure(user);
+      
+      if (validationResult.fixedFields.length > 0) {
+        console.warn(`Fixed missing fields for user ${user.username}:`, validationResult.fixedFields);
+        // Save the fixed user data
+        try {
+          await this.saveUser(user);
+        } catch (error) {
+          console.warn('Failed to save fixed user data:', error);
+        }
+      }
+      
+      if (validationResult.errors.length > 0) {
+        console.error('User validation errors:', validationResult.errors);
+      }
+    }
+
+    return user;
   }
 
   /**
@@ -161,11 +238,51 @@ export class ProductionDatabaseManager {
       await this.initialize();
     }
 
+    // Import safe registry service for validation
+    const { safeRegistry } = await import('./safeRegistryService');
+
+    let users: User[] = [];
+
     if (this.dbType === 'file') {
-      return await this.getAllUsersFromFile();
+      users = await this.getAllUsersFromFile();
     } else {
-      return await this.getAllUsersFromIndexedDB();
+      users = await this.getAllUsersFromIndexedDB();
     }
+
+    // Validate and fix all users
+    const validUsers: User[] = [];
+    let totalFixedFields = 0;
+
+    for (const user of users) {
+      if (!user || typeof user !== 'object') {
+        console.warn('Skipped invalid user object in getAllUsers');
+        continue;
+      }
+
+      const validationResult = safeRegistry.validateAndFixUserStructure(user);
+      
+      if (validationResult.isValid || validationResult.fixedFields.length > 0) {
+        validUsers.push(user);
+        totalFixedFields += validationResult.fixedFields.length;
+        
+        // Save fixed user data if needed
+        if (validationResult.fixedFields.length > 0) {
+          try {
+            await this.saveUser(user);
+          } catch (error) {
+            console.warn(`Failed to save fixed user data for ${user.username || 'unknown'}:`, error);
+          }
+        }
+      } else {
+        console.warn(`Skipped invalid user: ${user.username || 'unknown'}`);
+      }
+    }
+
+    if (totalFixedFields > 0) {
+      console.log(`Fixed ${totalFixedFields} missing fields across ${validUsers.length} users`);
+    }
+
+    return validUsers;
   }
 
   /**
@@ -183,11 +300,25 @@ export class ProductionDatabaseManager {
       throw new Error('Data directory not initialized');
     }
 
+    // Validate input
+    if (!user || typeof user !== 'object') {
+      throw new Error('Invalid user object provided to saveUserToFile');
+    }
+
+    if (!user.address || typeof user.address !== 'string') {
+      throw new Error('User address is required for file-based storage');
+    }
+
     const fs = require('fs');
     const path = require('path');
 
-    const userPath = path.join(this.dataDirectory, 'users', `${user.address}.json`);
-    fs.writeFileSync(userPath, JSON.stringify(user, null, 2));
+    try {
+      const userPath = path.join(this.dataDirectory, 'users', `${user.address.trim()}.json`);
+      fs.writeFileSync(userPath, JSON.stringify(user, null, 2));
+    } catch (error) {
+      console.error('Error saving user file:', error);
+      throw new Error(`Failed to save user file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private async getUserFromFile(address: string): Promise<User | null> {
@@ -195,15 +326,28 @@ export class ProductionDatabaseManager {
       throw new Error('Data directory not initialized');
     }
 
+    // Validate input
+    if (!address || typeof address !== 'string' || address.trim().length === 0) {
+      return null;
+    }
+
     const fs = require('fs');
     const path = require('path');
 
-    const userPath = path.join(this.dataDirectory, 'users', `${address}.json`);
+    const userPath = path.join(this.dataDirectory, 'users', `${address.trim()}.json`);
     
     try {
       if (fs.existsSync(userPath)) {
         const userData = fs.readFileSync(userPath, 'utf8');
-        return JSON.parse(userData);
+        const user = JSON.parse(userData);
+        
+        // Basic validation
+        if (!user || typeof user !== 'object') {
+          console.warn(`Invalid user data in file: ${userPath}`);
+          return null;
+        }
+        
+        return user;
       }
     } catch (error) {
       console.error('Error reading user file:', error);
@@ -244,7 +388,13 @@ export class ProductionDatabaseManager {
               const filePath = path.join(usersDir, file);
               const userData = fs.readFileSync(filePath, 'utf8');
               const user = JSON.parse(userData);
-              users.push(user);
+              
+              // Basic validation
+              if (user && typeof user === 'object' && user.address && user.username) {
+                users.push(user);
+              } else {
+                console.warn(`Invalid user data in file ${file}, skipping`);
+              }
             } catch (error) {
               console.error(`Error reading user file ${file}:`, error);
             }
@@ -265,13 +415,27 @@ export class ProductionDatabaseManager {
       throw new Error('IndexedDB not initialized');
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.indexedDB!.transaction(['users'], 'readwrite');
-      const store = transaction.objectStore('users');
-      const request = store.put(user);
+    // Validate input
+    if (!user || typeof user !== 'object') {
+      throw new Error('Invalid user object provided to saveUserToIndexedDB');
+    }
 
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
+    if (!user.address || typeof user.address !== 'string') {
+      throw new Error('User address is required for IndexedDB storage');
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this.indexedDB!.transaction(['users'], 'readwrite');
+        const store = transaction.objectStore('users');
+        const request = store.put(user);
+
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(new Error(`IndexedDB transaction failed: ${transaction.error?.message || 'Unknown error'}`));
+        request.onerror = () => reject(new Error(`IndexedDB put request failed: ${request.error?.message || 'Unknown error'}`));
+      } catch (error) {
+        reject(new Error(`IndexedDB operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     });
   }
 
@@ -280,13 +444,36 @@ export class ProductionDatabaseManager {
       throw new Error('IndexedDB not initialized');
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.indexedDB!.transaction(['users'], 'readonly');
-      const store = transaction.objectStore('users');
-      const request = store.get(address);
+    // Validate input
+    if (!address || typeof address !== 'string' || address.trim().length === 0) {
+      return null;
+    }
 
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this.indexedDB!.transaction(['users'], 'readonly');
+        const store = transaction.objectStore('users');
+        const request = store.get(address.trim());
+
+        request.onsuccess = () => {
+          const result = request.result;
+          
+          // Basic validation
+          if (result && typeof result === 'object' && result.address && result.username) {
+            resolve(result);
+          } else if (result) {
+            console.warn('Invalid user data retrieved from IndexedDB');
+            resolve(null);
+          } else {
+            resolve(null);
+          }
+        };
+        
+        request.onerror = () => reject(new Error(`IndexedDB get request failed: ${request.error?.message || 'Unknown error'}`));
+        transaction.onerror = () => reject(new Error(`IndexedDB transaction failed: ${transaction.error?.message || 'Unknown error'}`));
+      } catch (error) {
+        reject(new Error(`IndexedDB operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     });
   }
 
@@ -307,12 +494,37 @@ export class ProductionDatabaseManager {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.indexedDB!.transaction(['users'], 'readonly');
-      const store = transaction.objectStore('users');
-      const request = store.getAll();
+      try {
+        const transaction = this.indexedDB!.transaction(['users'], 'readonly');
+        const store = transaction.objectStore('users');
+        const request = store.getAll();
 
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const results = request.result || [];
+          
+          // Filter out invalid user objects
+          const validUsers = results.filter(user => {
+            if (!user || typeof user !== 'object') {
+              console.warn('Filtered out invalid user object from IndexedDB');
+              return false;
+            }
+            
+            if (!user.address || !user.username) {
+              console.warn('Filtered out user with missing required fields from IndexedDB');
+              return false;
+            }
+            
+            return true;
+          });
+          
+          resolve(validUsers);
+        };
+        
+        request.onerror = () => reject(new Error(`IndexedDB getAll request failed: ${request.error?.message || 'Unknown error'}`));
+        transaction.onerror = () => reject(new Error(`IndexedDB transaction failed: ${transaction.error?.message || 'Unknown error'}`));
+      } catch (error) {
+        reject(new Error(`IndexedDB operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     });
   }
 

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { User, LogEntry } from '../types';
 import { hashSecret, generateSalt, saveUser, sanitizeInput } from '../services/db';
 import APIKeyManager from './APIKeyManager';
+import DeepSeekStatusIndicator from './DeepSeekStatusIndicator';
+import { ErrorMonitoringDashboard } from './ErrorMonitoringDashboard';
 
 interface SettingsViewProps {
   user: User;
@@ -23,6 +25,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, addLog 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showMnemonic, setShowMnemonic] = useState(false);
+  const [showErrorMonitoring, setShowErrorMonitoring] = useState(false);
 
   // Sync state if user prop changes externally
   useEffect(() => {
@@ -203,6 +206,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, addLog 
           <div>
             <h2 className="text-3xl font-black text-white uppercase tracking-tighter">AI Integration</h2>
             <p className="text-[10px] text-green-400 font-bold tracking-[0.4em] uppercase mt-1">DeepSeek API :: Personal Mining Credits</p>
+            <div className="mt-2">
+              <DeepSeekStatusIndicator showDetails={true} />
+            </div>
           </div>
         </div>
         
@@ -222,6 +228,20 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, addLog 
           </div>
           <button className="px-12 py-4 bg-orange-500 text-black rounded-2xl text-[12px] font-black uppercase tracking-[0.4em] shadow-xl group-hover:bg-orange-400">
              Open Secure Vault
+          </button>
+      </div>
+
+      {/* Error Monitoring Dashboard */}
+      <div className="bg-zinc-900/40 border border-white/5 p-10 rounded-[4rem] shadow-2xl relative overflow-hidden flex flex-col items-center text-center gap-6 group hover:border-red-500/30 transition-all cursor-pointer" onClick={() => setShowErrorMonitoring(true)}>
+          <div className="w-16 h-16 bg-red-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-red-500/40 group-hover:scale-110 transition-transform">
+             <span className="text-3xl font-black text-white">⚠</span>
+          </div>
+          <div className="space-y-2">
+             <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Error Monitoring Dashboard</h2>
+             <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">System Health, Error Patterns & Diagnostics</p>
+          </div>
+          <button className="px-12 py-4 bg-red-500 text-white rounded-2xl text-[12px] font-black uppercase tracking-[0.4em] shadow-xl group-hover:bg-red-400">
+             Open Monitoring
           </button>
       </div>
 
@@ -338,6 +358,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, addLog 
           </div>
         </div>
       )}
+
+      {/* Error Monitoring Dashboard Modal */}
+      <ErrorMonitoringDashboard 
+        isVisible={showErrorMonitoring}
+        onClose={() => setShowErrorMonitoring(false)}
+      />
     </div>
   );
 };

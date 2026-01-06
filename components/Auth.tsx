@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { generateKeys, saveUser, getUserByIdentifier, getUserByMnemonic, hashSecret, generateSalt, sanitizeInput, generateMnemonic, generateRandomCode, generateProfileId } from '../services/db';
 import { User } from '../types';
 import LatticeLogo from './LatticeLogo';
+import { useStyling } from '../services/useStyling';
+import { enhancedAuth, AuthenticationRequest } from '../services/enhancedAuth';
+import { authErrorHandler } from '../services/authErrorHandler';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -26,6 +29,14 @@ const Auth = ({ onLogin }: AuthProps) => {
 
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  
+  // Enhanced authentication state
+  const [sessionId, setSessionId] = useState<string>('');
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [recoveryActions, setRecoveryActions] = useState<string[]>([]);
+
+  // Use styling hook
+  const { stylingState, getClasses, shouldUseFallback } = useStyling();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -41,121 +52,119 @@ const Auth = ({ onLogin }: AuthProps) => {
     e.preventDefault();
     setError('');
     setAuthStatus('');
+    setWarnings([]);
+    setRecoveryActions([]);
 
     if (honeypot) return;
 
-    if (lockoutUntil && Date.now() < lockoutUntil) {
-      const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
-      setError(`CRITICAL LOCK: System cooling... ${remaining}s remain.`);
-      return;
-    }
-
     setIsAuthenticating(true);
-    setAuthStatus('Synchronizing Shards...');
+    setAuthStatus('Initializing secure authentication...');
 
     try {
-      if (isRecover) {
-        const mnemonicString = mnemonicInput.join(' ').trim();
-        if (mnemonicInput.some(w => !w.trim())) {
-          throw new Error('RECOVERY ERROR: All 24 shards must be provided.');
-        }
+      const request: AuthenticationRequest = {
+        username: username.trim(),
+        password,
+        operation: isRecover ? 'recover' : (isRegister ? 'register' : 'login'),
+        mnemonic: isRecover ? mnemonicInput : undefined
+      };
 
-        const recoveredUser = await getUserByMnemonic(mnemonicString);
-        if (!recoveredUser) {
-          throw new Error('ENTROPIC FAILURE: No node found with these shards.');
-        }
+      const response = await enhancedAuth.authenticate(request);
+      setSessionId(response.sessionId);
 
-        setAuthStatus('Verifying 100k Hashes...');
-        const testHash = await hashSecret(password, recoveredUser.salt);
-        if (testHash !== recoveredUser.passwordHash) {
-          throw new Error('IDENTITY MISMATCH: Shards verified, but Master Secret is incorrect.');
-        }
-
-        setTempUser(recoveredUser);
-        setAuthLayer(2);
-        return;
+      if (response.warnings) {
+        setWarnings(response.warnings);
       }
 
-      const lookupId = username.trim();
-      const safeUsername = sanitizeInput(username);
+      if (response.recoveryActions) {
+        setRecoveryActions(response.recoveryActions);
+      }
 
-      if (isRegister) {
-        setAuthStatus('Generating High-Entropy Primitives...');
-        const existing = await getUserByIdentifier(lookupId);
-        if (existing) throw new Error('IDENTITY COLLISION: Frequency already occupied.');
-
-        const salt = generateSalt();
-        setAuthStatus('Hardening Master Secret...');
-        const passwordHash = await hashSecret(password, salt);
-        const mnemonic = generateMnemonic(); 
-        const securityCode = generateRandomCode(5);
-        const { publicKey, privateKey } = generateKeys(); 
-        const profileId = generateProfileId(safeUsername);
-        
-        const newUser: User = {
-          address: publicKey,
-          publicKey,
-          privateKey,
-          profileId,
-          mnemonic,
-          username: safeUsername,
-          passwordHash,
-          password: password, 
-          salt,
-          securityCode,
-          role: 'user',
-          balance: 0.000000000505, 
-          usdBalance: 0,
-          contacts: [],
-          transactions: [],
-          incidents: [],
-          solvedBlocks: [],
-          ownedNfts: [],
-          shardsTowardNextQBS: 0,
-          messagingActive: false,
-          miningActive: false,
-          xp: 0,
-          level: 1
-        };
-        
-        await saveUser(newUser);
-        setNewlyCreatedUser(newUser);
-        setAuthLayer(4); 
+      if (response.success) {
+        if (response.nextStep === 'security_code') {
+          setAuthLayer(2);
+          setAuthStatus('');
+          
+          // Get the temp user from auth state
+          const authState = enhancedAuth.getAuthState(response.sessionId);
+          if (authState?.tempUser) {
+            setTempUser(authState.tempUser);
+          }
+        } else if (response.nextStep === 'complete') {
+          if (isRegister && response.user) {
+            setNewlyCreatedUser(response.user);
+            setAuthLayer(4);
+          } else if (response.user) {
+            onLogin(response.user);
+          }
+        }
       } else {
-        setAuthStatus('Locating Node Identity...');
-        const user = await getUserByIdentifier(lookupId);
-        if (user) {
-          setAuthStatus('Computing PBKDF2 Chain...');
-          const testHash = await hashSecret(password, user.salt);
-          if (testHash === user.passwordHash) {
-            setTempUser(user);
-            setAuthLayer(2);
-          } else {
-            handleFailedAttempt();
-            throw new Error('SIGNATURE MISMATCH: Hash verification failed.');
+        // Handle authentication error
+        if (response.error) {
+          setError(response.userMessage || response.error.userMessage);
+          
+          // Check if this is a lockout error
+          if (response.error.code === 'ACCOUNT_LOCKED') {
+            const lockoutMatch = response.error.message.match(/(\d+) seconds/);
+            if (lockoutMatch) {
+              setLockoutUntil(Date.now() + parseInt(lockoutMatch[1]) * 1000);
+            }
           }
         } else {
-          handleFailedAttempt();
-          throw new Error('NODE NOT FOUND: Identity missing from lattice.');
+          setError('Authentication failed. Please try again.');
         }
       }
     } catch (err: any) {
-      setError(err.message || 'LATTICE ERROR: Access denied.');
+      // Fallback error handling for unexpected errors
+      const errorMessage = err.message || 'An unexpected error occurred during authentication.';
+      setError('System error: Please try again or contact support if the problem persists.');
+      
+      // Log the error for diagnostics
+      console.error('Authentication system error:', err);
     } finally {
       setIsAuthenticating(false);
       setAuthStatus('');
     }
   };
 
-  const handleSecurityCodeVerify = (e: React.FormEvent) => {
+  const handleSecurityCodeVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tempUser) return;
+    if (!sessionId) return;
     
-    if (securityCodeInput.toUpperCase() === (tempUser.securityCode || '').toUpperCase()) {
-      onLogin(tempUser);
-    } else {
-      setError('INVALID SECURITY CODE: Wave-function collapse.');
-      handleFailedAttempt();
+    setIsAuthenticating(true);
+    setError('');
+    setWarnings([]);
+
+    try {
+      const request: AuthenticationRequest = {
+        securityCode: securityCodeInput,
+        operation: 'verify_security_code',
+        password: '' // Not needed for security code verification
+      };
+
+      const response = await enhancedAuth.authenticate(request);
+
+      if (response.warnings) {
+        setWarnings(response.warnings);
+      }
+
+      if (response.success && response.user) {
+        onLogin(response.user);
+      } else {
+        setError(response.userMessage || 'Invalid security code. Please try again.');
+        
+        // Check for lockout
+        if (response.error?.code === 'ACCOUNT_LOCKED') {
+          const lockoutMatch = response.error.message.match(/(\d+) seconds/);
+          if (lockoutMatch) {
+            setLockoutUntil(Date.now() + parseInt(lockoutMatch[1]) * 1000);
+          }
+        }
+      }
+    } catch (err: any) {
+      setError('Security verification failed. Please try again.');
+      console.error('Security code verification error:', err);
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -166,94 +175,213 @@ const Auth = ({ onLogin }: AuthProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 overflow-hidden font-sans">
-      <div className="w-full max-w-2xl relative z-10 space-y-8 animate-in fade-in duration-700">
-        <div className="text-center space-y-3">
-          <div className="flex justify-center transform rotate-12 hover:rotate-0 transition-transform duration-500">
+    <div className={getClasses(
+      "min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 overflow-hidden font-sans",
+      "fallback-container"
+    )}>
+      <div className={getClasses(
+        "w-full max-w-2xl relative z-10 space-y-8 animate-in fade-in duration-700",
+        "fallback-card"
+      )}>
+        <div className={getClasses("text-center space-y-3", "")}>
+          <div className={getClasses(
+            "flex justify-center transform rotate-12 hover:rotate-0 transition-transform duration-500",
+            "flex justify-center"
+          )}>
             <LatticeLogo size="xl" />
           </div>
-          <div className="pt-4">
-            <h1 className="text-4xl font-black tracking-tighter uppercase italic">Sovereign Lattice</h1>
-            <p className="text-[10px] text-orange-500 font-bold tracking-[0.6em] uppercase mt-2">
+          <div className={getClasses("pt-4", "")}>
+            <h1 className={getClasses(
+              "text-4xl font-black tracking-tighter uppercase italic",
+              "fallback-title"
+            )}>Sovereign Lattice</h1>
+            <p className={getClasses(
+              "text-[10px] text-orange-500 font-bold tracking-[0.6em] uppercase mt-2",
+              "fallback-subtitle"
+            )}>
               {authLayer === 2 ? 'SECONDARY SECURITY LAYER' : isRecover ? 'DEEP RECOVERY VAULT' : 'Hardened Cryptographic Node'}
             </p>
           </div>
         </div>
 
-        <div className={`bg-zinc-900/60 backdrop-blur-3xl border ${isRecover ? 'border-purple-500/20' : 'border-white/10'} p-10 rounded-[3rem] shadow-2xl overflow-hidden transition-all duration-500`}>
+        {/* Styling Status Indicator */}
+        {stylingState.fallbackMode && (
+          <div className={getClasses(
+            "bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl text-center",
+            "fallback-error"
+          )}>
+            <p className={getClasses(
+              "text-[8px] text-yellow-500 font-black uppercase tracking-widest",
+              "fallback-error-text"
+            )}>
+              ⚠️ FALLBACK MODE ACTIVE - Enhanced compatibility enabled
+            </p>
+          </div>
+        )}
+
+        <div className={getClasses(
+          `bg-zinc-900/60 backdrop-blur-3xl border ${isRecover ? 'border-purple-500/20' : 'border-white/10'} p-10 rounded-[3rem] shadow-2xl overflow-hidden transition-all duration-500`,
+          "fallback-card"
+        )}>
           {authLayer === 1 && (
-            <div className="space-y-6">
-              <form onSubmit={handleAuth} className="space-y-6">
-                <input type="text" value={honeypot} onChange={e => setHoneypot(e.target.value)} className="hidden" tabIndex={-1} />
+            <div className={getClasses("space-y-6", "")}>
+              <form onSubmit={handleAuth} className={getClasses("space-y-6", "fallback-form")}>
+                <input type="text" value={honeypot} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setHoneypot(e.target.value)} className="hidden" tabIndex={-1} />
                 
                 {isRecover ? (
-                  <div className="space-y-6 animate-in slide-in-from-top-4 duration-500">
-                    <div className="bg-black/40 p-6 rounded-3xl border border-purple-500/10">
-                      <label className="text-[9px] font-black text-purple-400 uppercase tracking-widest block mb-4 px-1">Input 24 Quantum Shards (Mnemonic)</label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {mnemonicInput.map((word, i) => (
+                  <div className={getClasses("space-y-6 animate-in slide-in-from-top-4 duration-500", "")}>
+                    <div className={getClasses("bg-black/40 p-6 rounded-3xl border border-purple-500/10", "fallback-input-group")}>
+                      <label className={getClasses(
+                        "text-[9px] font-black text-purple-400 uppercase tracking-widest block mb-4 px-1",
+                        "fallback-label"
+                      )}>Input 24 Quantum Shards (Mnemonic)</label>
+                      <div className={getClasses("grid grid-cols-2 md:grid-cols-4 gap-2", "fallback-grid-4")}>
+                        {mnemonicInput.map((word: string, i: number) => (
                           <input 
                             key={i}
                             type="text"
                             value={word}
-                            onChange={(e) => {
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                               const updated = [...mnemonicInput];
                               updated[i] = e.target.value.toLowerCase().trim();
                               setMnemonicInput(updated);
                             }}
-                            className="bg-black/60 border border-white/5 rounded-xl p-2 text-[10px] mono text-white outline-none focus:border-purple-500/50 transition-all text-center"
+                            className={getClasses(
+                              "bg-black/60 border border-white/5 rounded-xl p-2 text-[10px] mono text-white outline-none focus:border-purple-500/50 transition-all text-center",
+                              "fallback-mnemonic-input"
+                            )}
                             placeholder={`${i+1}`}
                             required
                           />
                         ))}
                       </div>
                     </div>
-                    <div className="group">
-                      <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-2 px-1">Confirm Master Secret (Verification Gate)</label>
+                    <div className={getClasses("group", "fallback-input-group")}>
+                      <label className={getClasses(
+                        "text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-2 px-1",
+                        "fallback-label"
+                      )}>Confirm Master Secret (Verification Gate)</label>
                       <input 
-                        type="password" value={password} onChange={e => setPassword(e.target.value)}
-                        className="w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-purple-500 transition-all text-white font-mono"
+                        type="password" value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                        className={getClasses(
+                          "w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-purple-500 transition-all text-white font-mono",
+                          "fallback-input"
+                        )}
                         placeholder="Master Cipher Verification" required
                       />
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="group">
-                      <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-2 px-1">Operational Alias</label>
+                  <div className={getClasses("space-y-4 animate-in slide-in-from-bottom-4 duration-500", "")}>
+                    <div className={getClasses("group", "fallback-input-group")}>
+                      <label className={getClasses(
+                        "text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-2 px-1",
+                        "fallback-label"
+                      )}>Operational Alias</label>
                       <input 
-                        type="text" value={username} onChange={e => setUsername(e.target.value)}
-                        className="w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-orange-500 transition-all text-white font-medium"
+                        type="text" value={username} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+                        className={getClasses(
+                          "w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-orange-500 transition-all text-white font-medium",
+                          "fallback-input"
+                        )}
                         placeholder="Enter Node Identity" required
                       />
                     </div>
-                    <div className="group">
-                      <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-2 px-1">Master Access Secret</label>
+                    <div className={getClasses("group", "fallback-input-group")}>
+                      <label className={getClasses(
+                        "text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-2 px-1",
+                        "fallback-label"
+                      )}>Master Access Secret</label>
                       <input 
-                        type="password" value={password} onChange={e => setPassword(e.target.value)}
-                        className="w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-orange-500 transition-all text-white font-mono"
+                        type="password" value={password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                        className={getClasses(
+                          "w-full bg-black/60 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-orange-500 transition-all text-white font-mono",
+                          "fallback-input"
+                        )}
                         placeholder="Input Mastery Cipher" required
                       />
                     </div>
                   </div>
                 )}
 
-                {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl text-center animate-shake">
-                    <p className="text-[10px] text-red-500 font-black uppercase tracking-widest">{error}</p>
-                  </div>
-                )}
+        {/* Enhanced Error Display */}
+        {error && (
+          <div className={getClasses(
+            "bg-red-500/10 border border-red-500/20 p-4 rounded-xl text-center animate-shake",
+            "fallback-error fallback-shake"
+          )}>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-red-500">⚠️</span>
+              <p className={getClasses(
+                "text-[10px] text-red-500 font-black uppercase tracking-widest",
+                "fallback-error-text"
+              )}>Authentication Error</p>
+            </div>
+            <p className={getClasses(
+              "text-[9px] text-red-400 leading-relaxed",
+              "fallback-error-text"
+            )}>{error}</p>
+            
+            {/* Recovery Actions */}
+            {recoveryActions.length > 0 && (
+              <div className="mt-3 p-2 bg-red-500/5 rounded-lg border border-red-500/10">
+                <p className="text-[8px] text-red-300 font-bold mb-1">Suggested Actions:</p>
+                <ul className="text-[7px] text-red-300 space-y-1">
+                  {recoveryActions.map((action, index) => (
+                    <li key={index}>• {action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* System Warnings */}
+        {warnings.length > 0 && (
+          <div className={getClasses(
+            "bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl",
+            "fallback-warning"
+          )}>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-yellow-500">⚠️</span>
+              <p className={getClasses(
+                "text-[9px] text-yellow-500 font-black uppercase tracking-widest",
+                "fallback-warning-text"
+              )}>System Notices</p>
+            </div>
+            <ul className="space-y-1">
+              {warnings.map((warning, index) => (
+                <li key={index} className={getClasses(
+                  "text-[8px] text-yellow-400 leading-relaxed",
+                  "fallback-warning-text"
+                )}>• {warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
                 {authStatus && (
-                   <div className="flex items-center justify-center gap-3">
-                      <div className="w-3 h-3 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin"></div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">{authStatus}</span>
+                   <div className={getClasses(
+                     "flex items-center justify-center gap-3",
+                     "fallback-loading"
+                   )}>
+                      <div className={getClasses(
+                        "w-3 h-3 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin",
+                        "fallback-spinner"
+                      )}></div>
+                      <span className={getClasses(
+                        "text-[10px] font-black uppercase tracking-widest text-orange-500",
+                        "fallback-loading-text"
+                      )}>{authStatus}</span>
                    </div>
                 )}
                 
                 <button 
                   type="submit" disabled={isAuthenticating}
-                  className={`w-full py-5 ${isRecover ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-500/20' : 'bg-orange-500 hover:bg-orange-400 shadow-orange-500/20'} text-black border border-white/10 rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] transition-all active:scale-95 disabled:opacity-50`}
+                  className={getClasses(
+                    `w-full py-5 ${isRecover ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-500/20' : 'bg-orange-500 hover:bg-orange-400 shadow-orange-500/20'} text-black border border-white/10 rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] transition-all active:scale-95 disabled:opacity-50`,
+                    "fallback-button"
+                  )}
                 >
                   {isAuthenticating ? 'SYNCHRONIZING...' : isRecover ? 'RESTORE IDENTITY' : isRegister ? 'RESOLVE IDENTITY' : 'RESTORE CONNECTION'}
                 </button>
@@ -266,13 +394,19 @@ const Auth = ({ onLogin }: AuthProps) => {
                 </div>
               )}
 
-              <div className="flex flex-col gap-3 text-center pt-2">
+              <div className={getClasses("flex flex-col gap-3 text-center pt-2", "")}>
                 {!isRecover && (
-                  <button type="button" onClick={() => { setIsRegister(!isRegister); setIsRecover(false); setError(''); }} className="text-[9px] text-gray-600 hover:text-white uppercase font-black tracking-widest transition-colors">
+                  <button type="button" onClick={() => { setIsRegister(!isRegister); setIsRecover(false); setError(''); }} className={getClasses(
+                    "text-[9px] text-gray-600 hover:text-white uppercase font-black tracking-widest transition-colors",
+                    "fallback-link"
+                  )}>
                     {isRegister ? 'Return to Main Portal' : 'Generate New High-Entropy Node'}
                   </button>
                 )}
-                <button type="button" onClick={() => { setIsRecover(!isRecover); setIsRegister(false); setError(''); }} className={`text-[9px] ${isRecover ? 'text-orange-500' : 'text-purple-500'} hover:text-white uppercase font-black tracking-widest transition-colors`}>
+                <button type="button" onClick={() => { setIsRecover(!isRecover); setIsRegister(false); setError(''); }} className={getClasses(
+                  `text-[9px] ${isRecover ? 'text-orange-500' : 'text-purple-500'} hover:text-white uppercase font-black tracking-widest transition-colors`,
+                  "fallback-link"
+                )}>
                   {isRecover ? 'Cancel Recovery' : 'Recover Node Access (Mnemonic)'}
                 </button>
               </div>
@@ -280,39 +414,94 @@ const Auth = ({ onLogin }: AuthProps) => {
           )}
 
           {authLayer === 2 && (
-            <div className="space-y-8 animate-in zoom-in-95 duration-500">
-               <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/30">
-                     <span className="text-3xl italic font-black">?</span>
+            <div className={getClasses("space-y-8 animate-in zoom-in-95 duration-500", "")}>
+               <div className={getClasses("text-center", "")}>
+                  <div className={getClasses(
+                    "w-16 h-16 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/30",
+                    ""
+                  )}>
+                     <span className={getClasses("text-3xl italic font-black", "")}>?</span>
                   </div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-widest">Verify Shard PIN</h2>
-                  <p className="text-[9px] text-gray-500 uppercase font-black mt-2">Enter your 5-character secondary security code.</p>
-                  <p className="text-[8px] text-orange-500 font-black uppercase mt-1">Genesis Hint: 77777</p>
+                  <h2 className={getClasses("text-xl font-black text-white uppercase tracking-widest", "fallback-title")}>Verify Shard PIN</h2>
+                  <p className={getClasses("text-[9px] text-gray-500 uppercase font-black mt-2", "fallback-label")}>Enter your 5-character secondary security code.</p>
+                  <p className={getClasses("text-[8px] text-orange-500 font-black uppercase mt-1", "fallback-subtitle")}>Genesis Hint: 77777</p>
                </div>
 
-               <form onSubmit={handleSecurityCodeVerify} className="space-y-6">
-                  <div className="group">
+               <form onSubmit={handleSecurityCodeVerify} className={getClasses("space-y-6", "fallback-form")}>
+                  <div className={getClasses("group", "fallback-input-group")}>
                     <input 
                       type="text" 
                       maxLength={5}
                       value={securityCodeInput}
-                      onChange={e => setSecurityCodeInput(e.target.value.toUpperCase())}
-                      className="w-full bg-black/60 border border-white/10 rounded-2xl p-6 text-3xl font-black text-center tracking-[1em] outline-none focus:border-blue-500 transition-all text-blue-400 font-mono shadow-inner transition-all text-center"
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSecurityCodeInput(e.target.value.toUpperCase())}
+                      className={getClasses(
+                        "w-full bg-black/60 border border-white/10 rounded-2xl p-6 text-3xl font-black text-center tracking-[1em] outline-none focus:border-blue-500 transition-all text-blue-400 font-mono shadow-inner transition-all text-center",
+                        "fallback-security-input"
+                      )}
                       placeholder="*****"
                       autoFocus
                       required
                     />
                   </div>
 
+                  {/* Enhanced Error Display for Security Code */}
                   {error && (
-                    <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl text-center animate-shake">
-                      <p className="text-[10px] text-red-500 font-black uppercase tracking-widest">{error}</p>
+                    <div className={getClasses(
+                      "bg-red-500/10 border border-red-500/20 p-4 rounded-xl text-center animate-shake",
+                      "fallback-error fallback-shake"
+                    )}>
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-red-500">🔒</span>
+                        <p className={getClasses(
+                          "text-[10px] text-red-500 font-black uppercase tracking-widest",
+                          "fallback-error-text"
+                        )}>Security Verification Failed</p>
+                      </div>
+                      <p className={getClasses(
+                        "text-[9px] text-red-400 leading-relaxed",
+                        "fallback-error-text"
+                      )}>{error}</p>
+                      
+                      {lockoutUntil && Date.now() < lockoutUntil && (
+                        <div className="mt-2 p-2 bg-red-500/5 rounded-lg">
+                          <p className="text-[8px] text-red-300">
+                            Account temporarily locked for security. Please wait before trying again.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Security Code Warnings */}
+                  {warnings.length > 0 && (
+                    <div className={getClasses(
+                      "bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl",
+                      "fallback-info"
+                    )}>
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-blue-500">ℹ️</span>
+                        <p className={getClasses(
+                          "text-[9px] text-blue-500 font-black uppercase tracking-widest",
+                          "fallback-info-text"
+                        )}>Security Notices</p>
+                      </div>
+                      <ul className="space-y-1">
+                        {warnings.map((warning, index) => (
+                          <li key={index} className={getClasses(
+                            "text-[8px] text-blue-400 leading-relaxed",
+                            "fallback-info-text"
+                          )}>• {warning}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
 
                   <button 
                     type="submit"
-                    className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] shadow-xl shadow-blue-500/20"
+                    className={getClasses(
+                      "w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] shadow-xl shadow-blue-500/20",
+                      "fallback-button"
+                    )}
                   >
                     AUTHORIZE ACCESS
                   </button>
@@ -320,7 +509,10 @@ const Auth = ({ onLogin }: AuthProps) => {
                   <button 
                     type="button" 
                     onClick={() => { setAuthLayer(1); setTempUser(null); setSecurityCodeInput(''); setError(''); }}
-                    className="w-full text-[9px] text-gray-600 hover:text-white uppercase font-black tracking-widest transition-colors"
+                    className={getClasses(
+                      "w-full text-[9px] text-gray-600 hover:text-white uppercase font-black tracking-widest transition-colors",
+                      "fallback-link"
+                    )}
                   >
                     Identity Rollback
                   </button>
@@ -462,7 +654,10 @@ const Auth = ({ onLogin }: AuthProps) => {
 
               <button 
                 onClick={() => onLogin(newlyCreatedUser)}
-                className="w-full py-5 bg-orange-500 text-black rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] hover:bg-orange-400 transition-all shadow-xl shadow-orange-500/20"
+                className={getClasses(
+                  "w-full py-5 bg-orange-500 text-black rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] hover:bg-orange-400 transition-all shadow-xl shadow-orange-500/20",
+                  "fallback-button"
+                )}
               >
                 🚀 ENTER SOVEREIGN LATTICE PLATFORM
               </button>

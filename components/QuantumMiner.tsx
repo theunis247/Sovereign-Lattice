@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { QuantumProof } from '../types';
 import LatticeLogo from './LatticeLogo';
+import DeepSeekStatusIndicator from './DeepSeekStatusIndicator';
 
 interface QuantumMinerProps {
   isMining: boolean;
@@ -86,6 +87,14 @@ const QuantumMiner: React.FC<QuantumMinerProps> = ({
              <p className="text-[10px] text-white font-bold uppercase truncate">{activeInitiative}</p>
           </div>
         )}
+
+        {/* AI Status Indicator */}
+        <div className="bg-black/40 border border-white/5 p-3 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <span className="text-[7px] text-gray-500 font-black uppercase tracking-widest">AI Evaluation System</span>
+            <DeepSeekStatusIndicator />
+          </div>
+        </div>
 
         <div className={`relative h-56 bg-black/95 rounded-3xl border overflow-hidden flex items-center justify-center transition-all duration-500 ${
           isMining || isVerifying ? 'border-orange-500/40 shadow-[inset_0_0_50px_rgba(247,147,26,0.2)]' : 'border-white/5'

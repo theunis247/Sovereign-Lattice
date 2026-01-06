@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Styling Service Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #0a0a0b;
+            color: #e5e7eb;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(39, 39, 42, 0.6);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        
+        .success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+        
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+        
+        button {
+            background: #f97316;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #ea580c;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>TailwindCSS Detection and Fallback System Test</h1>
+        
+        <div id="test-results"></div>
+        
+        <div style="margin-top: 20px;">
+            <button onclick="runTests()">Run Tests</button>
+            <button onclick="forceFallback()">Force Fallback Mode</button>
+            <button onclick="testClassGeneration()">Test Class Generation</button>
+        </div>
+        
+        <div id="demo-area" style="margin-top: 20px;">
+            <h3>Demo Area</h3>
+            <div id="demo-element" class="bg-blue-500 text-white p-4 rounded-lg">
+                This element uses TailwindCSS classes
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import our styling service (simulated for testing)
+        class StylingService {
+            constructor() {
+                this.state = {
+                    isTailwindLoaded: false,
+                    hasStylesLoaded: false,
+                    fallbackMode: false,
+                    loadingErrors: []
+                };
+                this.listeners = [];
+            }
+
+            async initialize() {
+                try {
+                    await this.detectTailwindCSS();
+                    this.validateCriticalStyles();
+                    this.setupFallbackActivation();
+                    return this.state;
+                } catch (error) {
+                    console.error('Styling service initialization failed:', error);
+                    this.activateFallbackMode('Initialization failed');
+                    return this.state;
+                }
+            }
+
+            async detectTailwindCSS() {
+                return new Promise((resolve) => {
+                    const testElement = document.createElement('div');
+                    testElement.className = 'bg-black text-white p-4 hidden';
+                    testElement.style.position = 'absolute';
+                    testElement.style.top = '-9999px';
+                    document.body.appendChild(testElement);
+
+                    requestAnimationFrame(() => {
+                        try {
+                            const computedStyle = window.getComputedStyle(testElement);
+                            const backgroundColor = computedStyle.backgroundColor;
+                            const color = computedStyle.color;
+                            const padding = computedStyle.padding;
+
+                            const isTailwindWorking = 
+                                backgroundColor === 'rgb(0, 0, 0)' &&
+                                color === 'rgb(255, 255, 255)' &&
+                                padding === '16px';
+
+                            this.state.isTailwindLoaded = isTailwindWorking;
+                            
+                            if (!isTailwindWorking) {
+                                this.state.loadingErrors.push('TailwindCSS classes not applying correctly');
+                            }
+
+                            document.body.removeChild(testElement);
+                            resolve(isTailwindWorking);
+                        } catch (error) {
+                            this.state.loadingErrors.push(`TailwindCSS detection error: ${error}`);
+                            document.body.removeChild(testElement);
+                            resolve(false);
+                        }
+                    });
+
+                    setTimeout(() => {
+                        if (!this.state.isTailwindLoaded) {
+                            this.state.loadingErrors.push('TailwindCSS detection timeout');
+                            try {
+                                document.body.removeChild(testElement);
+                            } catch (e) {}
+                            resolve(false);
+                        }
+                    }, 2000);
+                });
+            }
+
+            validateCriticalStyles() {
+                try {
+                    const testDiv = document.createElement('div');
+                    testDiv.style.setProperty('--test-prop', 'test');
+                    const supportsCustomProps = testDiv.style.getPropertyValue('--test-prop') === 'test';
+
+                    if (!supportsCustomProps) {
+                        this.state.loadingErrors.push('CSS custom properties not supported');
+                    }
+
+                    const supportsGrid = CSS.supports('display', 'grid');
+                    if (!supportsGrid) {
+                        this.state.loadingErrors.push('CSS Grid not supported');
+                    }
+
+                    const supportsFlex = CSS.supports('display', 'flex');
+                    if (!supportsFlex) {
+                        this.state.loadingErrors.push('CSS Flexbox not supported');
+                    }
+
+                    this.state.hasStylesLoaded = supportsCustomProps && supportsGrid && supportsFlex;
+                } catch (error) {
+                    this.state.loadingErrors.push(`Style validation error: ${error}`);
+                    this.state.hasStylesLoaded = false;
+                }
+            }
+
+            setupFallbackActivation() {
+                if (!this.state.isTailwindLoaded || !this.state.hasStylesLoaded) {
+                    this.activateFallbackMode('TailwindCSS or critical styles failed to load');
+                }
+            }
+
+            activateFallbackMode(reason) {
+                this.state.fallbackMode = true;
+                this.state.loadingErrors.push(reason);
+                console.warn('Activating fallback styling mode:', reason);
+                this.injectCriticalCSS();
+                this.notifyListeners();
+            }
+
+            injectCriticalCSS() {
+                const existingStyle = document.getElementById('critical-fallback-css');
+                if (existingStyle) return;
+
+                const style = document.createElement('style');
+                style.id = 'critical-fallback-css';
+                style.textContent = `
+                    .fallback-container {
+                        min-height: 100vh;
+                        background-color: #000000;
+                        color: #ffffff;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 16px;
+                        font-family: sans-serif;
+                    }
+                    .fallback-button {
+                        background-color: #f97316;
+                        color: #000000;
+                        border: none;
+                        padding: 16px 32px;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        cursor: pointer;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            getClasses(tailwindClasses, fallbackClasses = '') {
+                if (this.state.fallbackMode) {
+                    return fallbackClasses;
+                }
+                return tailwindClasses;
+            }
+
+            forceFallbackMode(reason = 'Manually activated') {
+                this.activateFallbackMode(reason);
+            }
+
+            subscribe(callback) {
+                this.listeners.push(callback);
+                return () => {
+                    const index = this.listeners.indexOf(callback);
+                    if (index > -1) {
+                        this.listeners.splice(index, 1);
+                    }
+                };
+            }
+
+            notifyListeners() {
+                this.listeners.forEach(callback => {
+                    try {
+                        callback(this.state);
+                    } catch (error) {
+                        console.error('Error in styling state listener:', error);
+                    }
+                });
+            }
+
+            getState() {
+                return { ...this.state };
+            }
+        }
+
+        // Global test functions
+        window.stylingService = new StylingService();
+        
+        window.runTests = async function() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<h3>Running Tests...</h3>';
+            
+            try {
+                const result = await window.stylingService.initialize();
+                
+                let html = '<h3>Test Results:</h3>';
+                
+                html += `<div class="test-result ${result.isTailwindLoaded ? 'success' : 'error'}">
+                    TailwindCSS Loaded: ${result.isTailwindLoaded ? 'YES' : 'NO'}
+                </div>`;
+                
+                html += `<div class="test-result ${result.hasStylesLoaded ? 'success' : 'error'}">
+                    Critical Styles Loaded: ${result.hasStylesLoaded ? 'YES' : 'NO'}
+                </div>`;
+                
+                html += `<div class="test-result ${result.fallbackMode ? 'error' : 'success'}">
+                    Fallback Mode: ${result.fallbackMode ? 'ACTIVE' : 'INACTIVE'}
+                </div>`;
+                
+                if (result.loadingErrors.length > 0) {
+                    html += '<div class="test-result error">Errors:<ul>';
+                    result.loadingErrors.forEach(error => {
+                        html += `<li>${error}</li>`;
+                    });
+                    html += '</ul></div>';
+                }
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="test-result error">Test failed: ${error.message}</div>`;
+            }
+        };
+        
+        window.forceFallback = function() {
+            window.stylingService.forceFallbackMode('User requested fallback');
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += '<div class="test-result info">Fallback mode activated manually</div>';
+        };
+        
+        window.testClassGeneration = function() {
+            const tailwindClasses = 'bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600';
+            const fallbackClasses = 'fallback-button';
+            
+            const result = window.stylingService.getClasses(tailwindClasses, fallbackClasses);
+            
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML += `<div class="test-result info">
+                Class Generation Test:<br>
+                Input: "${tailwindClasses}"<br>
+                Fallback: "${fallbackClasses}"<br>
+                Result: "${result}"
+            </div>`;
+            
+            // Apply to demo element
+            const demoElement = document.getElementById('demo-element');
+            demoElement.className = result;
+        };
+        
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>

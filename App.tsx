@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { deepSeekClient } from './services/deepSeekClient';
+import { safeDeepSeekClient, SafeDeepSeekNotification } from './services/safeDeepSeekClient';
 import { rewardDistribution } from './services/rewardDistribution';
 import { walletConnector } from './services/walletConnector';
 import { evolutionProgressTracker } from './services/evolutionProgress';
 import { EvolutionErrorHandler } from './services/evolutionErrorHandler';
+import { setupGlobalErrorHandling, ErrorMonitoringBoundary } from './services/errorMonitoringUtils';
+import { errorMonitoringIntegration } from './services/errorMonitoringIntegration';
 import { SignalData, SimState, LogEntry, WalletState, SecureMessage, User, Contact, Transaction, SolvedBlock, LatticePool, ScientificDossier, Notification, QBSNFT, Proposal, UserVote, ScientificAdvance, Milestone, ShardGroup, SovereignGrade, EvolutionProgress } from './types';
 import { generatePhotons, quantumEncrypt, measureAndVerify, checkEntanglement, QBS_UNITS, getMasterBreakthrough, getShardScientificFocus, getCosmicDomain, formatCurrency, GRADE_MULTIPLIERS } from './services/quantumLogic';
 import { saveUser, sanitizeInput, getAllUsers, ADMIN_ID, getUserObject, initLatticeRegistry, hashSecret, getUserByIdentifier } from './services/db';
@@ -109,6 +111,50 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<SecureMessage[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   
+  // Setup SafeDeepSeek notification callback
+  useEffect(() => {
+    const handleSafeDeepSeekNotification = (notification: SafeDeepSeekNotification) => {
+      addNotification(notification.title, notification.message, notification.type === 'fallback' ? 'warning' : notification.type);
+      
+      if (notification.action) {
+        // Store action for potential UI integration
+        console.log('SafeDeepSeek action available:', notification.action.label);
+      }
+    };
+
+    safeDeepSeekClient.setNotificationCallback(handleSafeDeepSeekNotification);
+    
+    // Cleanup on unmount
+    return () => {
+      safeDeepSeekClient.setNotificationCallback(() => {});
+    };
+  }, []);
+
+  // Initialize error monitoring system
+  useEffect(() => {
+    try {
+      // Setup global error handlers
+      setupGlobalErrorHandling();
+      
+      // Log application startup
+      errorMonitoringIntegration.logSystemError(
+        'Application initialized successfully',
+        'App',
+        {
+          operation: 'app_initialization',
+          component: 'App',
+          additionalData: {
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            url: window.location.href
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Failed to initialize error monitoring:', error);
+    }
+  }, []);
+
   // SESSION SECURITY: AUTO-LOCK
   useEffect(() => {
     if (!currentUser) return;
@@ -271,18 +317,11 @@ const App: React.FC = () => {
     addLog("CONSENSUS: Shard proof detected. Peer-Review process engaged.", "warning");
 
     try {
-      // Check if DeepSeek API is configured
-      const isConfigured = await deepSeekClient.isConfigured();
-      if (!isConfigured) {
-        addNotification("API Key Required", "Please configure your DeepSeek API key in settings.", "warning");
-        setIsEvaluating(false);
-        setIsVerifying(false);
-        setWallet(w => ({ ...w, isMining: false, miningProgress: 0 }));
-        return;
-      }
-
-      // Use DeepSeek API for evaluation
-      const review = await deepSeekClient.evaluateMiningBreakthrough({
+      // Initialize safe DeepSeek client
+      const status = await safeDeepSeekClient.initialize();
+      
+      // Use safe DeepSeek API for evaluation (with automatic fallback)
+      const review = await safeDeepSeekClient.evaluateMiningBreakthrough({
         problem: wallet.currentProblem
       });
 
@@ -389,8 +428,14 @@ const App: React.FC = () => {
       await syncUser(updatedUser);
       addNotification(`Peer-Review: Grade ${grade}`, `Awarded ${quarkReward} QRK.${grade === 'S' ? ' MAGNITUDE ACCRUED.' : ''}`, grade === 'S' ? 'security' : 'success');
     } catch (err: any) {
-      console.error("DeepSeek API Error:", err);
-      addNotification("Review Error", err.message || "DeepSeek API failed to respond.", "error");
+      console.error("Mining evaluation error:", err);
+      
+      // The safe client handles fallbacks automatically, so we just need to handle UI state
+      const errorMessage = 'isFallback' in err ? 
+        `Using fallback evaluation: ${err.fallbackReason}` : 
+        err.message || "Evaluation system temporarily unavailable.";
+      
+      addNotification("Evaluation Notice", errorMessage, 'isFallback' in err ? "warning" : "error");
     } finally {
       setIsEvaluating(false);
       setIsVerifying(false);
@@ -425,25 +470,14 @@ const App: React.FC = () => {
     addLog(`EVOLUTION: Initiating refinement of Mk ${block.advancementLevel || 1} breakthrough "${block.problem.substring(0, 50)}..."`, "info");
 
     try {
-      // Check if DeepSeek API is configured
-      const isConfigured = await deepSeekClient.isConfigured();
-      if (!isConfigured) {
-        const error = EvolutionErrorHandler.classifyError(new Error("API key not configured"), 'API_KEY_MISSING');
-        addNotification("Evolution Error", error.userMessage, EvolutionErrorHandler.getNotificationType(error));
-        addNotification("Suggested Action", error.actionable, "info");
-        evolutionProgressTracker.handleEvolutionError(blockId, error.userMessage, error.type);
-        return;
-      }
-
-      // Test API connection before proceeding
-      addLog("EVOLUTION: Verifying DeepSeek API connection...", "info");
-      const connectionTest = await deepSeekClient.testConnection();
-      if (!connectionTest) {
-        const error = EvolutionErrorHandler.classifyError(new Error("Connection test failed"), 'NETWORK_CONNECTION');
-        addNotification("Evolution Error", error.userMessage, EvolutionErrorHandler.getNotificationType(error));
-        addNotification("Suggested Action", error.actionable, "info");
-        evolutionProgressTracker.handleEvolutionError(blockId, error.userMessage, error.type);
-        return;
+      // Initialize safe DeepSeek client
+      addLog("EVOLUTION: Initializing AI evaluation system...", "info");
+      const status = await safeDeepSeekClient.initialize();
+      
+      if (status.fallbackMode) {
+        addLog("EVOLUTION: Using fallback evaluation system", "warning");
+      } else {
+        addLog("EVOLUTION: DeepSeek API connection verified", "info");
       }
 
       // Advance through stages with realistic timing and progress callbacks
@@ -462,9 +496,9 @@ const App: React.FC = () => {
         addLog("EVOLUTION: Finalizing evolution results...", "info");
       }, 10000);
 
-      // Use DeepSeek API for evolution with progress reporting
-      addLog("EVOLUTION: Submitting breakthrough to DeepSeek Council...", "info");
-      const synth = await deepSeekClient.evolveBreakthrough({
+      // Use safe DeepSeek API for evolution with progress reporting
+      addLog("EVOLUTION: Submitting breakthrough to Advancement Council...", "info");
+      const synth = await safeDeepSeekClient.evolveBreakthrough({
         currentExplanation: block.explanation,
         currentLevel: block.advancementLevel || 1,
         blockId: block.id
@@ -575,17 +609,22 @@ const App: React.FC = () => {
       await syncUser(updatedUser);
       addNotification("Evolution Concluded", `Reached Mk ${(block.advancementLevel || 1) + 1} with Grade ${newGrade}.`, "success");
     } catch (err: any) {
-       console.error("DeepSeek Evolution Error:", err);
+       console.error("Evolution error:", err);
        
-       // Use enhanced error handling system
-       const evolutionError = EvolutionErrorHandler.classifyError(err);
-       const retryConfig = EvolutionErrorHandler.getRetryConfig(evolutionError);
-       
-       // Log detailed error information
-       addLog(`EVOLUTION ERROR: ${EvolutionErrorHandler.formatForLog(evolutionError)}`, "error");
-       
-       // Handle retryable errors
-       if (retryConfig.shouldRetry && !isRetryAttempt) {
+       // Handle fallback responses from safe client
+       if ('isFallback' in err) {
+         addLog(`EVOLUTION: Using fallback system - ${err.fallbackReason}`, "warning");
+         addNotification("Evolution Notice", `Using simplified evolution: ${err.fallbackReason}`, "warning");
+       } else {
+         // Use enhanced error handling system
+         const evolutionError = EvolutionErrorHandler.classifyError(err);
+         const retryConfig = EvolutionErrorHandler.getRetryConfig(evolutionError);
+         
+         // Log detailed error information
+         addLog(`EVOLUTION ERROR: ${EvolutionErrorHandler.formatForLog(evolutionError)}`, "error");
+         
+         // Handle retryable errors
+         if (retryConfig.shouldRetry && !isRetryAttempt) {
          evolutionProgressTracker.handleRetryableError(blockId, evolutionError.userMessage, retryConfig.delay);
          
          // Schedule retry after delay
@@ -595,21 +634,22 @@ const App: React.FC = () => {
          }, retryConfig.delay);
          
          return; // Don't clean up state yet, retry is scheduled
+         }
+         
+         // Show user-friendly error notification
+         const notificationType = EvolutionErrorHandler.getNotificationType(evolutionError);
+         addNotification("Evolution Error", evolutionError.userMessage, notificationType);
+         
+         // Show actionable guidance if available
+         if (evolutionError.actionable) {
+           setTimeout(() => {
+             addNotification("Suggested Action", evolutionError.actionable, "info");
+           }, 1000);
+         }
+         
+         // Handle evolution error in progress tracker
+         evolutionProgressTracker.handleEvolutionError(blockId, evolutionError.userMessage, evolutionError.type);
        }
-       
-       // Show user-friendly error notification
-       const notificationType = EvolutionErrorHandler.getNotificationType(evolutionError);
-       addNotification("Evolution Error", evolutionError.userMessage, notificationType);
-       
-       // Show actionable guidance if available
-       if (evolutionError.actionable) {
-         setTimeout(() => {
-           addNotification("Suggested Action", evolutionError.actionable, "info");
-         }, 1000);
-       }
-       
-       // Handle evolution error in progress tracker
-       evolutionProgressTracker.handleEvolutionError(blockId, evolutionError.userMessage, evolutionError.type);
     } finally {
        setIsEvolvingBreakthrough(prev => ({ ...prev, [blockId]: false }));
        setIsSynthesizingDossier(false);
