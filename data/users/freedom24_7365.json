@@ -18,7 +18,7 @@
   "transactions": [
     {
       "id": "TX-GENESIS-FOUNDER-PROD",
-      "timestamp": "2026-01-06T13:56:00.435Z",
+      "timestamp": "2026-01-06T14:06:42.289Z",
       "type": "CREDIT",
       "amount": "1000",
       "unit": "QBS",
@@ -35,9 +35,9 @@
   "level": 1,
   "tagline": "Sovereign Lattice Founder",
   "bio": "Production Genesis Node",
-  "created": "2026-01-06T13:56:00.436Z",
-  "lastAccessed": "2026-01-06T13:56:00.436Z",
-  "lastModified": "2026-01-06T13:56:00.436Z",
+  "created": "2026-01-06T14:06:42.291Z",
+  "lastAccessed": "2026-01-06T14:06:42.291Z",
+  "lastModified": "2026-01-06T14:06:42.291Z",
   "version": 1,
   "isLocked": false,
   "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"

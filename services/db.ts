@@ -14,8 +14,11 @@ export const ADMIN_ID = "qbs1qpxr9y7g9dw0sn54kce6mua7lqpzry9x8gf2tvdw0s3jn54khce
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
-// Check if we're in production environment
-const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_PERSISTENT === 'true';
+// Check if we're in production environment or if persistent database is enabled
+const isProduction = process.env.NODE_ENV === 'production' || 
+                    process.env.DATABASE_PERSISTENT === 'true' ||
+                    (typeof window !== 'undefined' && window.location.hostname !== 'localhost') ||
+                    true; // Force file-based database for now to fix issues
 
 const BECH32_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
